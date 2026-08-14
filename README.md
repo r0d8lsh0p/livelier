@@ -9,6 +9,7 @@ forks.
 
 ## Docs
 
+- [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup, test contract, PR expectations
 - [docs/architecture.md](docs/architecture.md) — topology, event/chat model, and the **invariants** (read before changing anything)
 - [docs/adding-a-source.md](docs/adding-a-source.md) — how to contribute a new bridged network
 - [docs/security.md](docs/security.md) — identity root, relay posture, chatter containment
