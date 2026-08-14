@@ -66,7 +66,7 @@ describe('LiveEventPublisher.publishLiveEvent', () => {
   });
 });
 
-describe('LiveEventPublisher retraction primitives (used by operations/retract-instance.ts)', () => {
+describe('LiveEventPublisher retraction primitives (used by operations/retract-instance.mjs)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('retractLiveEvent publishes a kind-5 naming the 30311 coordinate, event relay only', async () => {

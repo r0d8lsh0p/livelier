@@ -48,7 +48,7 @@ gated): `set-discovery.mjs <url> on|off` and `set-chat.mjs <url> on|off`.
 
 When a streamer asks to be removed: set both flags off (stops everything
 going forward), and — only if they also want existing events gone — run
-`npx ts-node -P packages/bridge/tsconfig.json operations/retract-instance.ts <url> --confirm` (NIP-09 kind-5 for
+`node operations/retract-instance.mjs <url> --confirm` (NIP-09 kind-5 for
 the 30311, blank kind-0 replacement). Keep who-asked-and-why in your own ops
 records. Re-enabling restores the same npub and d-tag — identity is derived,
 never random.

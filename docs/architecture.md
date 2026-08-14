@@ -162,7 +162,7 @@ Changes that violate any of these have caused (or would cause) real breakage.
 11. **The discovery flag stops the machine — nothing more.**
     `discovery_enabled=false` stops publishes AND liveness probes, but
     already-published events stay on the relays: removing them is a separate
-    manual operator action (`operations/retract-instance.ts`), never an engine
+    manual operator action (`operations/retract-instance.mjs`), never an engine
     behavior — "stop bridging forward, keep the history" must stay possible.
     The row must never be deleted — rediscovery would mint the instance as
     new and re-publish it. Posture env vars stamp NEW rows only, inside the

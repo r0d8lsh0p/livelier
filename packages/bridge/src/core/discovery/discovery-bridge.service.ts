@@ -197,7 +197,7 @@ export class DiscoveryBridgeService {
     // Opted out: the row keeps tracking directory metadata (above), but the
     // instance gets no liveness probes and nothing new reaches the relays.
     // Deliberately NOTHING more: already-published events stay put — removing
-    // them is a separate manual operator action (operations/retract-instance.ts),
+    // them is a separate manual operator action (operations/retract-instance.mjs),
     // so "stop bridging forward, keep the history" remains possible.
     if (!row.discovery_enabled) {
       metrics.disabledSkipped += 1;

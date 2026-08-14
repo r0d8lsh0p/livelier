@@ -15,7 +15,7 @@
  *   5. Nostr→Owncast: a viewer 1311 lands in the Owncast chat.
  *   6. Discovery flag + manual retraction: discovery_enabled=false stops the
  *      poller but leaves published events on the relay; the separate
- *      retract-instance.ts script removes them (NIP-09); flipping back on
+ *      retract-instance.mjs script removes them (NIP-09); flipping back on
  *      republishes under the SAME npub + d-tag.
  *
  * Usage: `npm run e2e` (from the repo root)
@@ -358,8 +358,8 @@ async function main() {
     const { execFileSync } = await import('node:child_process');
     try {
       const out = execFileSync(
-        'npx',
-        ['ts-node', '-P', 'packages/bridge/tsconfig.json', 'operations/retract-instance.ts', testRow.url, '--confirm'],
+        'node',
+        ['operations/retract-instance.mjs', testRow.url, '--confirm'],
         {
           cwd: new URL('../../..', import.meta.url).pathname,
           // No BRIDGE_NSEC here: the script's dotenv loads the repo's .env
@@ -377,9 +377,9 @@ async function main() {
           timeout: 60_000,
         }
       );
-      pass('retract-instance.ts ran', out.trim().split('\n').pop());
+      pass('retract-instance.mjs ran', out.trim().split('\n').pop());
     } catch (err) {
-      fail('retract-instance.ts ran', String(err.stdout || err.message).slice(0, 300));
+      fail('retract-instance.mjs ran', String(err.stdout || err.message).slice(0, 300));
     }
 
     const goneAfterRetract = (await roomEventsOnRelay()).length === 0;
