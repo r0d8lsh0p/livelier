@@ -3,7 +3,7 @@
 //   off — the poller stops probing and publishing this instance entirely.
 //         Already-published events REMAIN on the relays ("stop bridging
 //         forward, keep the history"); to also remove them, run
-//         `npx ts-node scripts/retract-instance.ts`.
+//         `npx ts-node -P packages/bridge/tsconfig.json operations/retract-instance.ts`.
 //         Chat rooms close too (a room requires discovery), but chat_enabled
 //         itself is untouched.
 //   on  — rejoins discovery on the next poll cycle, republishing under the
@@ -38,7 +38,7 @@ try {
   } else {
     console.log('Effect: probes and publishes stop within one poll cycle; any open chat');
     console.log('room closes. Already-published events REMAIN on the relays — to remove');
-    console.log('them too: npx ts-node scripts/retract-instance.ts <url> --confirm');
+    console.log('them too: npx ts-node -P packages/bridge/tsconfig.json operations/retract-instance.ts <url> --confirm');
   }
 
   if (!flags['--confirm']) {

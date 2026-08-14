@@ -3,10 +3,10 @@
 A new bridged network (PeerTube, Streamplace, …) touches exactly three places
 — **never `core/` and never another adapter**:
 
-1. `src/sources/<key>/adapter.ts` — implement `DiscoveryAdapter`, and
+1. `packages/bridge/src/sources/<key>/adapter.ts` — implement `DiscoveryAdapter`, and
    `ChatAdapter` if the network has chat
-2. `src/config.ts` — a `<KEY>_*` env block
-3. `src/index.ts` — one block in the composition root
+2. `packages/bridge/src/config.ts` — a `<KEY>_*` env block
+3. `packages/bridge/src/index.ts` — one block in the composition root
 
 `sources/owncast/` is the reference implementation throughout.
 
@@ -94,7 +94,7 @@ the network warrants otherwise, and independent chat gates
 
 ## 3. The composition root
 
-Copy the Owncast block in `src/index.ts`: build the adapter, then a
+Copy the Owncast block in `packages/bridge/src/index.ts`: build the adapter, then a
 `DiscoveryBridgeService` if discovery is enabled, then a `ChatBridgeService`
 if either chat gate is on. Core config (relays, secret, DB, network-relay
 posture) is shared; only the source block differs.
@@ -103,7 +103,7 @@ posture) is shared; only the source block differs.
 
 Nothing to do — rows and snapshots are automatically scoped by your
 `sourceKey`. If your network genuinely needs new columns, append a migration
-in `src/core/migrations.ts` (append-only; never edit a shipped one).
+in `packages/bridge/src/core/migrations.ts` (append-only; never edit a shipped one).
 
 ## Testing expectations
 
@@ -116,7 +116,7 @@ in `src/core/migrations.ts` (append-only; never edit a shipped one).
   compose stack provides the relays, a scratch `dummy-network-relay`, and the
   pattern of a local test instance (`owncast-test`); flag-on runs point
   `NETWORK_*_RELAYS` at the dummy.
-- Extend `scripts/e2e-full-stack.mjs` (or add a sibling) to prove your
+- Extend `packages/bridge/e2e/full-stack.mjs` (or add a sibling) to prove your
   discovery loop and, if applicable, both chat directions end-to-end locally.
 
 ## Checklist

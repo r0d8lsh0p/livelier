@@ -108,7 +108,7 @@ footprint; a PUBLISH is permanent, attributable fan-out. So:
   firehose (above). Technically just reads — it exists as a product-rollout
   gate, because it changes what lands in source-platform chats.
 
-The relay sets are curated in `src/core/relays.ts` — changing WHICH relays is
+The relay sets are curated in `packages/bridge/src/core/relays.ts` — changing WHICH relays is
 a reviewed code change. The `NETWORK_*_RELAYS` env vars exist only so test
 harnesses substitute local dummy relays for WRITE paths. The boot log prints
 the effective posture.
@@ -116,7 +116,7 @@ the effective posture.
 ## Data
 
 Postgres schema is managed by versioned boot-time migrations
-(`src/core/migrations.ts`): ordered embedded steps, tracked in
+(`packages/bridge/src/core/migrations.ts`): ordered embedded steps, tracked in
 `schema_migrations`, serialized by an advisory lock. Operators never run a
 migration command. The `bridge_instances` table is keyed by URL and scoped by
 `source` (network key) with `origin` provenance (`discovered`/`manual`);
@@ -162,7 +162,7 @@ Changes that violate any of these have caused (or would cause) real breakage.
 11. **The discovery flag stops the machine — nothing more.**
     `discovery_enabled=false` stops publishes AND liveness probes, but
     already-published events stay on the relays: removing them is a separate
-    manual operator action (`scripts/retract-instance.ts`), never an engine
+    manual operator action (`operations/retract-instance.ts`), never an engine
     behavior — "stop bridging forward, keep the history" must stay possible.
     The row must never be deleted — rediscovery would mint the instance as
     new and re-publish it. Posture env vars stamp NEW rows only, inside the

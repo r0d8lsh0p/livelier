@@ -1,8 +1,9 @@
-# Bridges — operations
+# Livelier — operations
 
 Operational tools for the Livelier bridge.
-The report is read-only; the instance-flag scripts write to `bridge_instances`
-and are dry-run by default, `--confirm` gated.
+The report and relay inspectors are read-only; the instance-flag scripts write
+to `bridge_instances` and are dry-run by default, `--confirm` gated;
+`retract-instance.ts` writes to the relays and is `--confirm` gated.
 
 All scripts target the DB in `DATABASE_URL` (default: the local compose stack,
 `postgres://bridges:bridges@localhost:5544/bridges`) and print the target host
@@ -16,7 +17,7 @@ one script each:
 - `discovery_enabled` — off: the poller stops touching the instance (no
   publishes, no liveness probes; open chat rooms close). Already-published
   events REMAIN on the relays — removing them is a separate manual step
-  (`npx ts-node scripts/retract-instance.ts <url> --confirm`).
+  (`npx ts-node -P packages/bridge/tsconfig.json operations/retract-instance.ts <url> --confirm`).
 - `chat_enabled` — the per-room chat allowlist; reconciled every ~30s, no
   deploy. Inert unless `discovery_enabled` and the direction gates
   (`OWNCAST_CHAT_TO_NOSTR`/`OWNCAST_CHAT_FROM_NOSTR`) are on.
@@ -38,6 +39,30 @@ node operations/set-discovery.mjs https://live.example on --confirm
 # Staged chat rollout / per-room kill switch:
 node operations/set-chat.mjs https://live.example on --confirm
 node operations/set-chat.mjs https://live.example off --confirm
+```
+
+## retract-instance.ts
+
+Manually removes an instance's published events from the relays: a NIP-09
+kind-5 deletion for the 30311 (by coordinate, bridge-signed) and a blank
+kind-0 replacement (instance-signed). Deliberately not automatic — turning
+discovery off only stops the machine; erasing history is a separate operator
+decision. Refuses to run while discovery is still on for the instance.
+
+TypeScript rather than `.mjs` because it signs with the bridge's own modules
+(`packages/bridge/src` + `packages/shared`), so it runs under ts-node:
+
+```bash
+npx ts-node -P packages/bridge/tsconfig.json operations/retract-instance.ts <url> --confirm
+```
+
+## Relay inspectors: query-relay / check-exclusivity
+
+Dependency-light read-only diagnostics (plain WebSocket, no bridge code):
+
+```bash
+node operations/query-relay.mjs [wsUrl]     # kind/author census of a relay (default ws://localhost:7449)
+node operations/check-exclusivity.mjs       # prove derived npubs have NO events on public relays
 ```
 
 ## build-snapshot-report.mjs

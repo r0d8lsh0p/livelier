@@ -10,7 +10,7 @@ get found the moment they go live.
 [![Website](https://img.shields.io/badge/livelier.live-visit-FF006E)](https://livelier.live)
 [![License: MIT](https://img.shields.io/badge/license-MIT-FFBE0B)](LICENSE)
 [![Nostr NIP-53](https://img.shields.io/badge/Nostr-NIP--53-8338EC)](https://github.com/nostr-protocol/nips/blob/master/53.md)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3A86FF)](tsconfig.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3A86FF)](packages/bridge/tsconfig.json)
 
 </div>
 
@@ -88,36 +88,41 @@ under `sources/` implementing the `DiscoveryAdapter` and (optionally)
 and the composition root in `index.ts` — never `core/` or other adapters.
 
 ```
-src/
-  index.ts                       composition root: one block per enabled source
-  config.ts                      env → { core, owncast } (global + per-source blocks)
-  core/
-    identity.ts                  bridge signer, per-instance signer, d-tag, profile hash
-    instance-store.ts            Postgres state, source-scoped (bridge_instances)
-    migrations.ts                versioned schema migrations, applied at boot
-    metrics.ts                   per-cycle observation counters
-    types.ts                     InstanceRow
-    discovery/
-      types.ts                   DiscoveryAdapter, DiscoveredLive, Liveness
-      discovery-bridge.service.ts  lifecycle engine: poll → liveness → publish → reconcile
-    chat/
-      types.ts                   ChatAdapter, SourceChatMessage
-      chat-bridge.service.ts     rooms, chatter identities, 3-layer dedup, demand gating
-      fingerprint.ts
-    nostr/
-      live-event.publisher.ts    kind-0 + kind-30311 via shared clientService
-      nostr-gateway.ts           the chat service's one seam to the relay
-      authed-publish.ts          one-shot NIP-42 publish (NIP-70 policy)
-      demand.client.ts           GET /demand reader
-  sources/
-    owncast/
-      adapter.ts                 OwncastAdapter: DiscoveryAdapter + ChatAdapter
-      discovery/                 directory client, slate-aware HLS probe, feed types
-      chat/                      WS listener, paced sender pool, HTML↔text
-site/                            livelier.live — the public front page (Vite, static)
-scripts/
-  query-relay.mjs          inspect events stored on the local relay
-  check-exclusivity.mjs    prove derived npubs have no events on public relays
+packages/
+  bridge/                        @livelier/bridge — the bridge worker
+    src/
+      index.ts                   composition root: one block per enabled source
+      config.ts                  env → { core, owncast } (global + per-source blocks)
+      core/
+        identity.ts              bridge signer, per-instance signer, d-tag, profile hash
+        instance-store.ts        Postgres state, source-scoped (bridge_instances)
+        migrations.ts            versioned schema migrations, applied at boot
+        metrics.ts               per-cycle observation counters
+        types.ts                 InstanceRow
+        discovery/
+          types.ts               DiscoveryAdapter, DiscoveredLive, Liveness
+          discovery-bridge.service.ts  lifecycle engine: poll → liveness → publish → reconcile
+        chat/
+          types.ts               ChatAdapter, SourceChatMessage
+          chat-bridge.service.ts rooms, chatter identities, 3-layer dedup, demand gating
+          fingerprint.ts
+        nostr/
+          live-event.publisher.ts  kind-0 + kind-30311 via shared clientService
+          nostr-gateway.ts       the chat service's one seam to the relay
+          authed-publish.ts      one-shot NIP-42 publish (NIP-70 policy)
+          demand.client.ts       GET /demand reader
+      sources/
+        owncast/
+          adapter.ts             OwncastAdapter: DiscoveryAdapter + ChatAdapter
+          discovery/             directory client, slate-aware HLS probe, feed types
+          chat/                  WS listener, paced sender pool, HTML↔text
+    e2e/
+      full-stack.mjs             full-stack E2E against the compose stack
+  shared/                        forked Nostr client stack (client.service, signers, tags)
+  site/                          livelier.live — the public front page (Vite, static)
+operations/                      operator tools: instance flags, retraction, relay
+                                 inspectors, snapshot report (see operations/README.md)
+docker/                          relay configs for the local compose stack
 ```
 
 ## Identity model
@@ -144,7 +149,7 @@ run a migration command — `docker compose up` (or a Railway deploy) applies
 whatever is pending. To change the schema, append a new `{ version, name, sql }`
 entry; never edit or reorder a shipped migration.
 
-The vendored `shared/src/` tree provides the Nostr client stack:
+The forked `packages/shared/src/` tree provides the Nostr client stack:
 `buildLiveEventTags` (NIP-53 + NIP-48 tags), `DerivedKeySigner`,
 `deriveInstancePrivKey` (HMAC per-instance keys), and the profile
 read stack (coordinator, caches).
@@ -156,8 +161,8 @@ From the repo root:
 ```bash
 docker compose up -d      # relay + db + poller
 docker compose logs -f poller
-node scripts/query-relay.mjs ws://localhost:7449
-node scripts/check-exclusivity.mjs
+node operations/query-relay.mjs ws://localhost:7449
+node operations/check-exclusivity.mjs
 docker compose down       # stop (add -v to wipe data)
 ```
 
@@ -179,7 +184,7 @@ Two independent gates, both default **off**:
   `NETWORK_CHAT_READ_RELAYS` catches correctly `#a`-tagged events that never
   reached our chat relay, routing them internally. A product-rollout gate.
 
-The sets are curated in `src/core/relays.ts` — changing WHICH relays is a
+The sets are curated in `packages/bridge/src/core/relays.ts` — changing WHICH relays is a
 reviewed code change, not an env edit. The `NETWORK_*_RELAYS` env vars exist
 only so test harnesses can substitute local dummy relays
 (`dummy-network-relay` in the compose stack); never set them in a real
@@ -187,32 +192,33 @@ deployment. The boot log prints the effective posture.
 
 ## The website
 
-[livelier.live](https://livelier.live) lives in [`site/`](site/) — a static
-Vite build that reads live data (stream count, chat count, relay policies)
-from the bridge relays in the visitor's browser, so every claim on the page is
-verified client-side. It shares the repo's `shared/` Nostr client through one
-seam file, `site/src/seam/shared.ts`.
+[livelier.live](https://livelier.live) lives in [`packages/site/`](packages/site/) —
+a static Vite build that reads live data (stream count, chat count, relay
+policies) from the bridge relays in the visitor's browser, so every claim on
+the page is verified client-side. It shares the repo's `packages/shared/`
+Nostr client through one seam file, `packages/site/src/seam/shared.ts`.
 
 ```bash
-cd site
+cd packages/site
 npm ci
 npm run dev         # local dev server
-npm run build       # static build in site/dist/
+npm run build       # static build in packages/site/dist/
 ```
 
 The relay URLs default to production and can be overridden per deploy with
 `VITE_EVENT_RELAY` and `VITE_CHAT_RELAY`. Brand assets and the
-[brand guide](site/brand/Livelier-brand-guide.md) live in `site/brand/`.
+[brand guide](packages/site/brand/Livelier-brand-guide.md) live in
+`packages/site/brand/`.
 
 There is also a machine-readable summary of the whole project at
-[`site/public/llms.txt`](site/public/llms.txt), served at
+[`packages/site/public/llms.txt`](packages/site/public/llms.txt), served at
 `livelier.live/llms.txt`.
 
 ## Test / typecheck
 
 ```bash
-npm test && npx tsc --noEmit          # bridge (repo root)
-cd site && npm run typecheck          # website
+npm test && npm run typecheck            # bridge + shared (from the repo root)
+cd packages/site && npm run typecheck    # website
 ```
 
 ## Docs

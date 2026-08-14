@@ -7,8 +7,9 @@ FROM node:20-bookworm-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY packages/bridge/package.json packages/bridge/
 RUN npm ci
 
 COPY . .
 
-CMD ["npx", "ts-node", "src/index.ts"]
+CMD ["npm", "start", "-w", "packages/bridge"]

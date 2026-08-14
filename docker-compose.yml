@@ -114,7 +114,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - ./:/repo
-    command: sh -c "npx ts-node src/index.ts"
+    command: sh -c "npm start -w packages/bridge"
 
   # Local test fleet: our own Owncast instance. Chat + lifecycle are tested
   # exclusively against this (zero real-stream contact). Feed it with:

@@ -14,7 +14,7 @@ that surprise people:
 
 - **Write containment.** Every publish names its target relays explicitly.
   `publishEvent` throws without a relay list, and
-  `src/core/nostr/client.boundary.test.ts` fences the APIs that could
+  `packages/bridge/src/core/nostr/client.boundary.test.ts` fences the APIs that could
   bypass that. Reads are unconstrained; writes never are.
 - **The flag stops the machine, nothing more.** `discovery_enabled=false`
   stops probes and publishes but never deletes rows or retracts events —
@@ -27,7 +27,7 @@ Requirements: Node 20+, Docker.
 ```bash
 npm install
 npm test              # unit + behavior tests, no network, no stack needed
-npx tsc --noEmit      # typecheck
+npm run typecheck
 ```
 
 Most work never needs more than that: the test suites fake every boundary
@@ -58,7 +58,7 @@ ffmpeg -re -f lavfi -i testsrc2=size=640x360:rate=30 -f lavfi -i sine \
 ```
 
 Seed a manual row for `http://owncast-test:8080` in the compose Postgres
-(see `scripts/e2e-full-stack.mjs`'s header for the expected identity — the
+(see `packages/bridge/e2e/full-stack.mjs`'s header for the expected identity — the
 pubkey/d-tag derive from the default dev secret), wait one poll cycle
 (~2 minutes), then:
 
@@ -68,7 +68,7 @@ npm run e2e           # 18 checks; takes ~20 minutes (retraction phase waits out
 
 ## Before opening a PR
 
-1. `npm test` and `npx tsc --noEmit` pass.
+1. `npm test` and `npm run typecheck` pass.
 2. Every new or changed export has a test — behavior tests with faked
    boundaries, colocated next to the module.
 3. No `console.log`; `console.warn`/`console.error` only for genuine
@@ -78,8 +78,8 @@ npm run e2e           # 18 checks; takes ~20 minutes (retraction phase waits out
 5. Comments state constraints, not history — write what the next reader
    needs, not what changed.
 
-Keep PRs focused. A new source adapter should touch `src/sources/<key>/`,
-`src/config.ts`, and the composition root in `src/index.ts` — never `core/`
+Keep PRs focused. A new source adapter should touch `packages/bridge/src/sources/<key>/`,
+`src/config.ts`, and the composition root in `src/index.ts` (both in `packages/bridge`) — never `core/`
 or other adapters (that seam is the design; see adding-a-source.md).
 
 ## Test writes never touch the real network
