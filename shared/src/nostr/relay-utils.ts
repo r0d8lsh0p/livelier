@@ -1,4 +1,4 @@
-import { Event, kinds } from 'nostr-tools';
+import { Event } from 'nostr-tools';
 import { getAppConfig } from '../config/app-config';
 
 /**

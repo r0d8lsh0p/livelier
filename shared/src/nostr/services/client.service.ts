@@ -1,6 +1,6 @@
 import { SimplePool, Filter, kinds, Event, EventTemplate } from 'nostr-tools';
 import { cachedVerifyEvent, markEventVerified } from './event-verifier';
-import { getRelayListFromRelayListEvent, RelayList } from '../relay-utils';
+import { RelayList } from '../relay-utils';
 import relayService from './relay.service';
 import { ISigner } from '../types';
 import { withTimeout } from '../../utils/promise-timeout';
