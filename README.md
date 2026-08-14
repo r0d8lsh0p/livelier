@@ -7,6 +7,7 @@
 A free, open-source community project that helps self-hosted live streamers
 get found the moment they go live.
 
+[![CI](https://github.com/r0d8lsh0p/livelier/actions/workflows/ci.yml/badge.svg)](https://github.com/r0d8lsh0p/livelier/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/badge/livelier.live-visit-FF006E)](https://livelier.live)
 [![License: MIT](https://img.shields.io/badge/license-MIT-FFBE0B)](LICENSE)
 [![Nostr NIP-53](https://img.shields.io/badge/Nostr-NIP--53-8338EC)](https://github.com/nostr-protocol/nips/blob/master/53.md)
