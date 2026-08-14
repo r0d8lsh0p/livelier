@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Livelier — livelier livestreams on the open internet</title>
+<meta name="description" content="Livelier bridges self-hosted live streams onto Nostr as live events, with two-way chat. Discovery happens on the network; viewers watch on your own server.">
+<link rel="icon" href="/brand/logomark.png">
+<link rel="apple-touch-icon" href="/brand/logomark.png">
+<meta property="og:title" content="Livelier — livelier livestreams on the open internet">
+<meta property="og:description" content="Livelier bridges self-hosted live streams onto Nostr as live events, with two-way chat. Discovery happens on the network; viewers watch on your own server.">
+<meta property="og:type" content="website">
+<link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+
+<div id="progress" aria-hidden="true"><span></span></div>
+
+<!-- ══════════════════ HERO ══════════════════ -->
+<header class="hero">
+  <div class="bloom bloom-a" aria-hidden="true"></div>
+  <div class="bloom bloom-b" aria-hidden="true"></div>
+  <div class="wrap">
+    <p class="badge" data-reveal><span class="pulse"></span> Did you see Livelier in your chat?</p>
+
+    <h1 data-reveal data-delay="1">
+      <span class="hello">Hello! You've found</span>
+      <img class="logotext" src="/brand/logotext.png" alt="Livelier.live" width="470" height="161">
+    </h1>
+
+    <p class="lede" data-reveal data-delay="2">
+      A <strong>free, open-source, community project</strong> that helps self-hosted live
+      streamers get found the moment they go live – For <i>livelier</i> live streams.
+    </p>
+
+    <!-- Live numbers, read from the bridge relays in your browser. -->
+    <div class="stats" data-reveal data-delay="3">
+      <div class="stat">
+        <span class="stat-value" id="stat-creators" data-count>—</span>
+        <span class="stat-label">users bridged</span>
+      </div>
+      <div class="stat stat-live">
+        <span class="stat-value" id="stat-live" data-count>—</span>
+        <span class="stat-label">live right now</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value stat-value-text" id="stat-ttl">3 Hours</span>
+        <span class="stat-label">chat auto-delete</span>
+      </div>
+    </div>
+    <p class="stats-note" data-reveal data-delay="3">
+      <svg class="tick" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M7.5 12.4l3 3 6-6.4" />
+      </svg>
+      Your browser confirmed these stats are true by reading Livelier's relays.
+    </p>
+
+    <p class="scrollhint" data-reveal data-delay="3">Here's exactly what's going on <span class="bob">↓</span></p>
+  </div>
+</header>
+
+<!-- ══════════════════ 1 · WHAT HAPPENED ══════════════════ -->
+<section id="what">
+  <div class="wrap">
+    <p class="kicker" data-reveal>What Livelier.live is doing</p>
+    <h2 data-reveal>Livelier makes self-hosted live streams available to a wider audience.</h2>
+    <p data-reveal data-delay="1">
+      <strong>Your live stream is listed in a public directory</strong> that Livelier watches,
+      such as <a href="https://owncast.directory" target="_blank" rel="noopener">Owncast Directory</a>.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>When you go live</strong>, Livelier bridges your live stream to Nostr — a global
+      open network of apps and websites full of people who love independent live video.
+    </p>
+    <p data-reveal data-delay="3">
+      <strong>When one of those people opens your stream's chat</strong>, Livelier joins your chat
+      and bridges the messages both ways — it joins under the name "Livelier".
+    </p>
+    <p data-reveal data-delay="4">
+      <strong>If you saw "Livelier" appear in your chat</strong>, someone out there just tuned in
+      to watch your live stream, and Livelier bridged the chat so they could join.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ 2 · FIND YOUR CHANNEL ══════════════════ -->
+<section id="finder" class="band">
+  <div class="wrap">
+    <p class="kicker" data-reveal>See for yourself</p>
+    <h2 data-reveal>What does Livelier know about your live stream?</h2>
+    <p data-reveal data-delay="1">
+      <strong>Livelier republishes already-public directory information</strong> to its own Nostr
+      relays so that more people can find it. It only captures things you have published elsewhere.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>Put your server URL in below</strong> and this page will fetch whatever Livelier holds,
+      live, off the relay.
+    </p>
+
+    <form class="finder" id="finder-form" data-reveal data-delay="2">
+      <label class="sr-only" for="finder-input">Your server URL</label>
+      <input id="finder-input" type="text" inputmode="url" spellcheck="false"
+             placeholder="live.example.com" autocomplete="off">
+      <button type="submit">Look me up</button>
+    </form>
+    <p class="finder-hint" data-reveal data-delay="2">
+      Or <button type="button" class="linky" id="finder-random">fetch one of the live streams that's live now</button>
+    </p>
+
+    <div id="finder-result" class="finder-result" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ══════════════════ 3 · REACH ══════════════════ -->
+<section id="reach">
+  <div class="wrap">
+    <p class="kicker" data-reveal>Discovery</p>
+    <h2 data-reveal>Where your live stream shows up.</h2>
+    <p data-reveal data-delay="1">
+      <strong>The moment you're live</strong> on a directory that Livelier watches, it bridges your live stream to any website or app that subscribes to the bridge,
+      carrying your title, your artwork, and a player URL pointing at
+      your own server.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>Nothing is re-hosted and nothing is uploaded.</strong> Viewers connect to your
+      server to watch.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>Your live stream gets more reach.</strong> Any website or app that subscribes to the bridge can discover your live stream, for example:
+    </p>
+    <div class="apps" data-reveal data-delay="2">
+      <span class="app">Zap.Stream</span>
+      <span class="app">Shosho</span>
+      <span class="app">Primal</span>
+      <span class="app">Amethyst</span>
+      <span class="app">Nostrudel</span>
+      <span class="app app-any">…and any app that supports Nostr NIP-53</span>
+    </div>
+  </div>
+
+  <div class="wrap wrap-wide">
+    <h3 class="grid-title" data-reveal>Live on the bridge right now</h3>
+    <div class="live-grid" id="live-grid" aria-live="polite">
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </div>
+    <h3 class="grid-title" data-reveal>And more...</h3>
+  </div>
+</section>
+
+<!-- ══════════════════ 4 · CHAT ══════════════════ -->
+<section id="chat" class="band">
+  <div class="wrap">
+    <p class="kicker" data-reveal>Chat</p>
+    <h2 data-reveal>Live chat messages are bridged both ways then deleted after.</h2>
+    <p data-reveal data-delay="1">
+      <strong>When a viewer on the network opens your stream's chat</strong>, Livelier joins your
+      chat room under its own name to bridge your chat messages to them.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>Chat is bridged both ways and is deleted after.</strong> Viewers' chat messages are
+      held only on the bridge, not published to any wider network, expire after three hours, and
+      are then hard-deleted by the relay.
+    </p>
+
+    <p class="ttl-line" data-reveal data-delay="3">
+      Right now there are <strong id="stat-chat-inline" data-count>—</strong> chat messages on the
+      bridge.<span id="chat-oldest"></span> None should be older than
+      <strong id="ttl-window">three hours</strong>.
+    </p>
+
+    <p class="finder-hint" data-reveal data-delay="3">
+      <button type="button" class="linky" id="chat-sample">Show me an example chat message</button>
+    </p>
+    <div id="chat-sample-result" class="finder-result" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ══════════════════ 5 · PROMISES ══════════════════ -->
+<section id="promises">
+  <div class="wrap">
+    <p class="kicker" data-reveal>Promises</p>
+    <h2 data-reveal>Attempting a trustworthy design for streamers and viewers.</h2>
+    <p data-reveal data-delay="1">
+      <strong>The Livelier bridge is designed to meet the needs of streamers and viewers in a
+      trustworthy way.</strong> Each commitment is enforced in the open source code, rather than
+      by policy.
+    </p>
+
+    <div class="promises">
+      <article class="promise" data-reveal>
+        <h3>Content should pass through unchanged.</h3>
+        <p><strong>Nothing is edited, filtered, or gated.</strong> Everything you publish about
+        your stream is passed along for viewers' apps to act on.</p>
+      </article>
+      <article class="promise" data-reveal data-delay="1">
+        <h3>Overhead should be very light.</h3>
+        <p><strong>Livelier's load on your server is one playlist check a minute.</strong> A chat
+        connection opens only while someone is watching.</p>
+      </article>
+      <article class="promise" data-reveal data-delay="2">
+        <h3>Bridged chat should not persist.</h3>
+        <p><strong>Chat lives on one dedicated relay</strong>, is marked <em>do-not-share</em>,
+        and is deleted on a timer. It should not be archived, syndicated, or searchable
+        afterwards.</p>
+      </article>
+      <article class="promise" data-reveal data-delay="3">
+        <h3>The bridge should have its own identity.</h3>
+        <p><strong>Livelier joins your chat under its own name.</strong> Nothing it publishes
+        forces any brand on you or on your viewers.</p>
+      </article>
+      <article class="promise" data-reveal data-delay="4">
+        <h3>Bridged accounts should be marked as mirrors.</h3>
+        <p><strong>Everything published is labelled as a bridge</strong>, and links back to your
+        server as the source to build your audience, not Livelier.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 6 · THE RELAYS ══════════════════ -->
+<section id="relays" class="band">
+  <div class="wrap">
+    <p class="kicker" data-reveal>How it works</p>
+    <h2 data-reveal>Live streams and chat are bridged to Nostr relays.</h2>
+    <p data-reveal data-delay="1">
+      <strong>Nostr is a global social network protocol</strong> where “Notes and Other Stuff are
+      Transmitted by Relays”. One kind of Other Stuff is the live event —
+      <a href="https://github.com/nostr-protocol/nips/blob/master/53.md" target="_blank" rel="noopener">NIP-53</a>,
+      a way to announce live streams and open live chat rooms.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>Livelier is a Nostr client</strong> that operates as a bridge. It finds live streams
+      on other public directories and publishes them to its own Nostr relays.
+    </p>
+    <p data-reveal data-delay="3">
+      <strong>Any Nostr client can query Livelier</strong> by subscribing to its relays, and receive
+      the live streams and live chat events that are on the bridge.
+    </p>
+    <p data-reveal data-delay="4">
+      <strong>The Livelier bridge operates two relays</strong>, each with one job and a narrow
+      policy: one for live streams, and one for live chat.
+    </p>
+    <p data-reveal data-delay="5">
+      <strong>The code is open source.</strong> The bridge and both relays are open source code,
+      and each relay declares its own behaviour in its
+      <a href="https://github.com/nostr-protocol/nips/blob/master/11.md" target="_blank" rel="noopener">NIP-11</a>
+      document.
+    </p>
+
+    <div class="relay-cards">
+      <article class="relay-card" id="relay-event" data-reveal data-delay="1">
+        <p class="relay-role">discovery</p>
+        <h3 class="relay-name">…</h3>
+        <p class="relay-host"><code>…</code></p>
+        <p class="relay-desc">…</p>
+        <ul class="relay-facts">
+          <li><b>Only the bridge can write to it.</b> The write whitelist contains one key.</li>
+          <li><b>Anyone can read it.</b> This is where clients read your stream's event.</li>
+        </ul>
+        <p class="relay-nips">…</p>
+        <p class="relay-source"><a class="cmd-btn" href="#" target="_blank" rel="noopener">…</a></p>
+      </article>
+
+      <article class="relay-card" id="relay-chat" data-reveal data-delay="2">
+        <p class="relay-role">chat</p>
+        <h3 class="relay-name">…</h3>
+        <p class="relay-host"><code>…</code></p>
+        <p class="relay-desc">…</p>
+        <ul class="relay-facts">
+          <li><b>A short list of allowed kinds.</b> Anything that isn't chat or an identity is rejected.</li>
+          <li><b>Deletion on a timer.</b> Scheduled deletion rather than log rotation, stated in the document above.</li>
+          <li><b>Bridged chat messages are protected.</b> <a href="https://github.com/nostr-protocol/nips/blob/master/70.md" target="_blank" rel="noopener">NIP-70</a> marks them as un-rebroadcastable, so honest relays elsewhere refuse them from anyone but their author.</li>
+          <li><b>Writers must prove who they are.</b> <a href="https://github.com/nostr-protocol/nips/blob/master/42.md" target="_blank" rel="noopener">NIP-42</a> authentication, which is what makes the protection above enforceable.</li>
+        </ul>
+        <p class="relay-nips">…</p>
+        <p class="relay-source"><a class="cmd-btn" href="#" target="_blank" rel="noopener">…</a></p>
+      </article>
+    </div>
+
+    <p class="stats-note" data-reveal>
+      <svg class="tick" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M7.5 12.4l3 3 6-6.4" />
+      </svg>
+      Your browser confirmed these policies by reading each relay's own NIP-11 document.
+    </p>
+
+  </div>
+</section>
+
+<!-- ══════════════════ 7 · VERIFY ══════════════════ -->
+<section id="verify" class="dark">
+  <div class="wrap">
+    <p class="kicker" data-reveal>Verify it yourself</p>
+    <h2 data-reveal>Every claim on this page can be verified.</h2>
+    <p data-reveal data-delay="1">
+      <strong>You can query our relays to verify each statement made on this page</strong> using
+      <a href="https://github.com/fiatjaf/nak" target="_blank" rel="noopener">nak</a> is the
+      Nostr command-line tool — <code>brew install nak</code>.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>Prefer not to install anything?</strong> The same commands run in
+      <a href="https://grimoire.rocks" target="_blank" rel="noopener">Grimoire</a> which is like Nak but runs in a
+      browser tab.
+    </p>
+    <div class="cmds" id="cmds" data-reveal data-delay="2"></div>
+
+    <p class="verify-source" data-reveal>
+      <strong>You can also read the Livelier bridge source code.</strong> Everything above is produced by the
+      code at <a href="https://github.com/r0d8lsh0p/livelier" target="_blank" rel="noopener">github.com/r0d8lsh0p/livelier</a>
+      — the discovery loop, what each event carries, and the relay policies these commands report.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════ 8 · CONTROL ══════════════════ -->
+<section id="control">
+  <div class="wrap">
+    <p class="kicker" data-reveal>Get involved</p>
+    <h2 data-reveal>What do you think?</h2>
+    <ol class="steps" data-reveal data-delay="1">
+      <li><div><b>“I like it.”</b> If you are already on the bridge there is nothing you need to do. Keep on as you have been, and Livelier should continue to find and bridge your live stream.</div></li>
+      <li><div><b>“I want to opt out.”</b> You can opt out no questions asked. Please open an issue on Github naming your server. We will opt-out your server and it will no longer appear on the bridge.</div></li>
+      <li><div><b>“I want to contribute.”</b> Livelier is new, but hopefully it can become a community project with many new networks added as adapters, and we would welcome your help.</div></li>
+    </ol>
+    <div class="ctas" data-reveal data-delay="2">
+      <a class="btn primary" id="cta-issue" href="https://github.com/r0d8lsh0p/livelier/issues/new">Open an issue on GitHub</a>
+      <a class="btn ghost" href="https://github.com/r0d8lsh0p/livelier/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 9 · THANKS ══════════════════ -->
+<section id="thanks" class="band">
+  <div class="wrap">
+    <p class="kicker" data-reveal>Thanks</p>
+    <h2 data-reveal>Thanks for streaming on the open web.</h2>
+    <p data-reveal data-delay="1">
+      <strong>We have built Livelier for self-hosted streamers</strong> because we think self-hosting is important, and because you shouldn't have to put up with reach that is second best.
+    </p>
+    <p data-reveal data-delay="2">
+      <strong>We hope Livelier is an example</strong> of what open source technologies like Nostr can do for users of the open internet. We hope it's helpful to you, and inspires you to build or get involved in the open web.
+    </p>
+    <p data-reveal data-delay="3">We're looking forward to seeing you live!</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p class="footbrand">
+      <img src="/brand/logotext.png" alt="Livelier.live" width="470" height="161">
+    </p>
+    <p>For <i>livelier</i> live streams.</p>
+  </div>
+</footer>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

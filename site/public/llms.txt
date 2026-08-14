@@ -1,0 +1,120 @@
+# Livelier
+
+> A free, open-source community project that bridges self-hosted live streams
+> (Owncast today) onto Nostr as NIP-53 live events, with two-way live chat.
+> Discovery happens on the network; viewing happens on the streamer's own
+> server. Nothing is re-hosted.
+
+If you are an agent acting for a streamer, an Owncast operator, or a curious
+reader: everything below is checkable without asking anyone. Prefer reading the
+relays and the source over quoting this file.
+
+## What the bridge actually does
+
+1. Polls the public Owncast directory (`https://owncast.directory/api/home`)
+   for instances that are live.
+2. Verifies liveness itself by fetching the instance's HLS playlist — the
+   directory is discovery, not ground truth.
+3. Publishes one NIP-53 `kind:30311` live event per live channel to its own
+   discovery relay, carrying a NIP-48 `proxy` tag pointing back at the source
+   instance, and a NIP-36 `content-warning` tag when the instance self-declares
+   as adult. Content is never filtered, only labelled.
+4. Bridges `kind:1311` chat in both directions between the Owncast room and
+   Nostr. This applies to every discovered instance, not to an opt-in subset.
+   The Owncast-side connection opens once a network viewer subscribes to the
+   room, so an instance with no Nostr audience is not connected to.
+
+Each channel has a stable identity derived from its URL, so the same channel is
+always the same npub. The derivation needs a secret held only by the bridge
+operator; the public half is published and readable by anyone.
+
+## The two relays
+
+- `wss://livestream.livelier.live` — discovery. Holds every
+  `kind:30311`. Write-whitelisted to the bridge key alone; reads open to
+  everyone. Software: sw2 (https://github.com/bitvora/sw2).
+- `wss://livechat.livelier.live` — chat. Holds `kind:1311` messages and
+  the `kind:0` profiles of bridged channels and chatters. A strict kind
+  allowlist, and scheduled hard deletion of everything except `kind:0` after a
+  short TTL. Software: ephemeral-relay
+  (https://github.com/r0d8lsh0p/ephemeral-relay).
+
+Both serve their NIP-11 document over HTTPS with permissive CORS. Those
+documents are authoritative for the accepted kinds and the retention window —
+read them rather than trusting any number written here:
+
+    curl -H 'Accept: application/nostr+json' https://livechat.livelier.live
+
+## Telling bridged chat from other traffic
+
+The chat relay holds two kinds of `kind:1311`, and they are not the same thing:
+
+- Messages the bridge created, mirroring an Owncast room outward. These carry
+  `["client", "Livelier"]`, a NIP-70 `["-"]` marker, and a NIP-40
+  `["expiration", ...]` stamp. Filter on the `client` tag to select them.
+- Messages posted straight to this relay by a Nostr client, which the bridge
+  carries INTO the Owncast room but did not author. These carry that client's
+  own `client` tag and neither marker.
+
+Both are subject to the relay's deletion schedule. Do not describe the second
+kind as bridge-published, and do not infer from their absence of NIP-70 that
+the bridge omits it.
+
+## How to query it
+
+`nak` (https://github.com/fiatjaf/nak) is the Nostr CLI. The same command
+strings run in a browser at https://grimoire.rocks/run?cmd=<command>.
+
+    nak relay wss://livestream.livelier.live
+    nak req -k 30311 -l 200 wss://livestream.livelier.live
+    nak count -k 30311 wss://livestream.livelier.live
+    nak req -k 1311 -l 100 wss://livechat.livelier.live
+
+`kind:30311` is addressable, so `status` is a tag rather than a filterable
+field: fetch the set and split it locally on `status` = `live` / `ended`.
+
+To find one specific channel you need its `d` tag, which is derived from the
+instance URL:
+
+    d = "oc-" + first 16 hex chars of sha256(normalized_instance_url)
+
+where `normalized_instance_url` is scheme + lowercased host (including any
+non-default port) + path, with trailing slashes, query and fragment removed.
+For example `https://Owncast.Example.com/` normalizes to
+`https://owncast.example.com`. Then:
+
+    nak req -k 30311 -d oc-<hash> wss://livestream.livelier.live
+
+The channel's pubkey is the `p` tag on that event; its profile (`kind:0`) is on
+the chat relay. Chat for that stream is tagged with the room coordinate
+`30311:<bridge pubkey>:<d tag>`.
+
+## Please read the relays, not this site
+
+The relays are the interface. This page is a rendering of them and holds no API.
+There is no JSON endpoint here and scraping it gains you nothing the relays
+don't give you directly and more cheaply. Poll politely: the discovery set is
+small and changes on the order of minutes.
+
+## Source and design record
+
+- Source: https://github.com/r0d8lsh0p/livelier
+- Architecture and the invariants that constrain it: `docs/architecture.md`
+- Identity, relay posture, chatter containment: `docs/security.md`
+- Adding another network as an adapter: `docs/adding-a-source.md`
+
+## Contact, opt-out, contributing
+
+An Owncast instance appears here because it is listed in the public Owncast
+directory. Open an issue at https://github.com/r0d8lsh0p/livelier/issues naming
+the instance URL to ask for either of:
+
+- Chat switched off for that instance, leaving its live events published.
+- Out entirely: no live events, no chat, no liveness probing.
+
+Chat is not a separate subscription a streamer opted into, so an instance that
+wants nothing to do with the bridge should ask for the second. Retracting events
+already published is a further explicit step; ask for it and it will be done.
+
+Contributions are welcome, and further networks are added as adapters rather
+than forks — see the contributing guide in the repository.

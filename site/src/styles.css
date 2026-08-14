@@ -1,0 +1,461 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Livelier — livelier.live
+   Palette and type from brand/Livelier-brand-guide.md. Rounded gradients
+   rather than flat colour; Great Vibes for script accents only.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Nunito';
+  src: url('/fonts/nunito-latin-var.woff2') format('woff2-variations');
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Great Vibes';
+  src: url('/fonts/great-vibes-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --gold: #FFBE0B;
+  --orange: #FB5607;
+  --pink: #FF006E;
+  --purple: #8338EC;
+  --blue: #3A86FF;
+
+  --ink: #1B1330;
+  --ink-soft: #5D5175;
+  --ink-faint: #8E85A3;
+
+  --paper: #FFFDFB;
+  --paper-warm: #FFF6EC;
+  --line: rgba(27, 19, 48, 0.10);
+
+  --sweep: linear-gradient(100deg, var(--gold) 0%, var(--orange) 34%, var(--pink) 68%, var(--purple) 100%);
+  /* Buttons stop at pink. Running to purple made a filled button read as a
+     different, heavier element than the rest of the palette's warm range. */
+  --sweep-button: linear-gradient(100deg, var(--gold) 0%, var(--orange) 45%, var(--pink) 100%);
+  --sweep-soft: linear-gradient(100deg, #FFE9A8, #FFC7A8, #FFB8D4, #DCC4FB);
+
+  --wrap: 700px;
+  --wrap-wide: 1080px;
+  --radius: 24px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+::selection { background: var(--pink); color: #fff; }
+
+/* ── scroll progress ─────────────────────────────────────────────── */
+#progress { position: fixed; inset: 0 0 auto 0; height: 4px; z-index: 99; pointer-events: none; }
+#progress span {
+  display: block; height: 100%; width: 0;
+  background: var(--sweep);
+  transition: width .08s linear;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ── layout ──────────────────────────────────────────────────────── */
+.wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+.wrap-wide { max-width: var(--wrap-wide); }
+section { padding: 13vh 0; position: relative; }
+
+.band {
+  background: var(--paper-warm);
+  border-radius: 48px;
+  margin: 0 12px;
+}
+@media (max-width: 620px) { .band { border-radius: 32px; margin: 0 8px; } }
+
+/* ── reveal on scroll ────────────────────────────────────────────── */
+[data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.3,1); }
+[data-reveal].in { opacity: 1; transform: none; }
+[data-delay="1"] { transition-delay: .10s; }
+[data-delay="2"] { transition-delay: .20s; }
+[data-delay="3"] { transition-delay: .32s; }
+[data-delay="4"] { transition-delay: .44s; }
+[data-delay="5"] { transition-delay: .56s; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .pulse, .bob { animation: none; }
+  #progress { display: none; }
+}
+
+/* ── hero ────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  min-height: 94vh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 11vh 0 7vh;
+  overflow: hidden;
+}
+/* The blooms are positioned, so without this they paint ABOVE the hero's
+   non-positioned content — CSS paints positioned elements after in-flow blocks
+   whatever the DOM order — and a blurred gradient tints the white panels that
+   are supposed to be sitting on top of it. Obvious on narrow screens, where
+   bloom-b lands squarely under the stat tiles. */
+.hero .wrap { position: relative; z-index: 1; }
+.bloom { position: absolute; z-index: 0; border-radius: 50%; filter: blur(70px); opacity: .5; pointer-events: none; }
+.bloom-a { width: 620px; height: 620px; top: -220px; right: -180px;
+  background: radial-gradient(circle at 40% 40%, rgba(255,190,11,.85), rgba(251,86,7,.35) 45%, transparent 70%); }
+.bloom-b { width: 560px; height: 560px; bottom: -260px; left: -200px;
+  background: radial-gradient(circle at 60% 40%, rgba(131,56,236,.5), rgba(255,0,110,.28) 45%, transparent 70%); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 14px; font-weight: 700; letter-spacing: .02em;
+  color: var(--ink-soft); background: #fff;
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 16px; width: max-content; margin-bottom: 30px;
+  box-shadow: 0 4px 18px rgba(27,19,48,.06);
+}
+.pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--pink); animation: pulse 1.8s ease-out infinite; }
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255,0,110,.6); }
+  70%  { box-shadow: 0 0 0 11px rgba(255,0,110,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,0,110,0); }
+}
+
+h1 { margin-bottom: 26px; line-height: 1; }
+/* Matches the lede's voice and weight — the logotype carries the script. */
+h1 .hello {
+  display: block;
+  font-size: clamp(19px, 2.4vw, 23px);
+  font-weight: 800;
+  line-height: 1.65;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.logotext { display: block; width: min(495px, 100%); height: auto; }
+
+.lede { font-size: clamp(19px, 2.4vw, 23px); color: var(--ink-soft); max-width: 560px; }
+.lede strong { color: var(--ink); font-weight: 800; }
+
+/* ── live stats ──────────────────────────────────────────────────── */
+.stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 34px 0 10px; }
+.stat {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 22px; min-width: 148px;
+  box-shadow: 0 6px 22px rgba(27,19,48,.05);
+}
+/* One gradient stretched across all three tiles, so the row reads as a sweep
+   rather than three identical orange numbers. */
+/* A fixed line box, not a multiple of the font size — the TTL tile sets its own
+   smaller size and the three labels still sit on one line. */
+.stat-value {
+  display: block; font-size: 36px; font-weight: 900; line-height: 40px;
+  background-image: var(--sweep); background-size: 340% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.stat:nth-child(1) .stat-value { background-position: 0% 0; }
+.stat:nth-child(2) .stat-value { background-position: 50% 0; }
+.stat:nth-child(3) .stat-value { background-position: 100% 0; }
+.stat-label { display: block; font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--ink-faint); }
+.stat-live { position: relative; }
+/* Centred on the corner arc's own centre point (inset = --radius), so the dot
+   sits on the diagonal of the curve rather than floating beside it. */
+.stat-live::after {
+  content: ''; position: absolute; top: var(--radius); right: var(--radius);
+  width: 8px; height: 8px; margin: -4px -4px 0 0; border-radius: 50%; background: var(--pink);
+  animation: pulse 1.8s ease-out infinite;
+}
+.stat-value-text { font-size: 30px; white-space: nowrap; }
+
+/* Top-aligned, not centred: when the sentence wraps, a centred tick drifts
+   into the gap between lines. The nudge puts it on the first line's centre —
+   14px text on a 1.65 line box leaves ~3px above the 17px mark. */
+.stats-note { font-size: 14px; color: var(--ink-faint); margin-bottom: 6px;
+  display: flex; align-items: flex-start; gap: 8px; }
+.tick { width: 17px; height: 17px; flex: none; margin-top: 3px; }
+.tick circle { fill: var(--pink); stroke: none; }
+.tick path { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.scrollhint { margin-top: 7vh; color: var(--ink-faint); font-size: 15px; font-weight: 600; }
+.bob { display: inline-block; animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+
+/* ── section furniture ───────────────────────────────────────────── */
+.kicker {
+  font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--orange); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 11px;
+}
+.kicker::before { content: ''; width: 28px; height: 3px; border-radius: 3px; background: var(--sweep-button); }
+
+h2 { font-size: clamp(30px, 4.8vw, 46px); line-height: 1.12; font-weight: 900;
+  letter-spacing: -.02em; margin-bottom: 20px; }
+h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+p { color: var(--ink-soft); margin-bottom: 18px; }
+p strong { color: var(--ink); font-weight: 800; }
+p em { color: var(--ink); font-style: italic; }
+a { color: var(--pink); font-weight: 700; text-decoration: none; border-bottom: 2px solid rgba(255,0,110,.25); }
+a:hover { border-bottom-color: var(--pink); }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em;
+  background: rgba(131,56,236,.08); padding: 2px 7px; border-radius: 7px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.script-line {
+  font-family: 'Great Vibes', cursive; font-size: clamp(28px, 4vw, 40px); line-height: 1.3;
+  background: var(--sweep); -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin-bottom: 6px;
+}
+
+/* ── finder ──────────────────────────────────────────────────────── */
+.finder { display: flex; gap: 10px; flex-wrap: wrap; margin: 26px 0 10px; }
+.finder input {
+  flex: 1 1 260px; font: inherit; font-weight: 600; color: var(--ink);
+  background: #fff; border: 2px solid var(--line); border-radius: 16px; padding: 14px 18px;
+}
+.finder input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 4px rgba(131,56,236,.14); }
+.finder button {
+  font: inherit; font-weight: 800; color: #fff; cursor: pointer;
+  border: none; border-radius: 16px; padding: 14px 26px; background: var(--sweep-button);
+  box-shadow: 0 6px 20px rgba(255,0,110,.25);
+}
+.finder button:hover { filter: brightness(1.06); }
+.finder-hint { font-size: 15px; color: var(--ink-faint); }
+.linky { font: inherit; font-weight: 700; color: var(--pink); background: none; border: none;
+  border-bottom: 2px solid rgba(255,0,110,.25); cursor: pointer; padding: 0; }
+.linky:hover { border-bottom-color: var(--pink); }
+
+.finder-result:empty { display: none; }
+.finder-result { margin-top: 24px; }
+.result-card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px; box-shadow: 0 10px 34px rgba(27,19,48,.07);
+}
+.result-card h3 { margin-bottom: 4px; }
+/* Title → summary → URL read as one block; the tags are a separate beat. */
+.result-summary { margin-bottom: 8px; }
+.result-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; }
+.pill { font-size: 13px; font-weight: 800; border-radius: 999px; padding: 5px 13px;
+  background: rgba(131,56,236,.10); color: var(--purple); }
+.pill.live { background: rgba(255,0,110,.12); color: var(--pink); }
+.pill.ended { background: rgba(27,19,48,.07); color: var(--ink-faint); }
+.kv { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 6px 14px; font-size: 15px; margin-top: 18px; }
+.kv dt { font-weight: 800; color: var(--ink-faint); }
+.kv dd { color: var(--ink-soft); overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.result-note { font-size: 15px; margin: 16px 0 0; }
+
+/* The two things a streamer actually wants to know: where their viewers go,
+   and what happens to their chat. */
+.callout { border-radius: 16px; padding: 18px 20px; margin-top: 16px; }
+.callout p { font-size: 15px; margin-bottom: 0; }
+.callout-head { font-weight: 800; color: var(--ink); margin-bottom: 8px !important; overflow-wrap: anywhere; }
+.callout-server { background: rgba(58,134,255,.08); }
+.callout-chat { background: rgba(255,0,110,.07); }
+.callout-expiry { background: rgba(255,190,11,.14); }
+.callout-protect { background: rgba(58,134,255,.08); }
+.callout-policy { background: rgba(131,56,236,.08); }
+.callout code { background: rgba(27,19,48,.07); }
+
+.result-url { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+
+/* A real bridged message, rendered the way a chat client would show it. */
+.sample-label { font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: 14px; }
+.chat-lockup { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 4px; }
+.chat-avatar { width: 42px; height: 42px; border-radius: 50%; flex: none; object-fit: cover; }
+.chat-avatar-initial { display: grid; place-items: center; color: #fff; font-weight: 900;
+  font-size: 18px; background: var(--sweep-button); }
+.chat-lockup-body { min-width: 0; }
+.chat-lockup-name { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 2px; }
+.chat-lockup-time { font-weight: 600; font-size: 13px; color: var(--ink-faint); margin-left: 8px; }
+.chat-lockup-msg { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+
+/* The chat number is the point of this panel, so it reads as a counter rather
+   than a figure buried in a sentence. */
+/* Drop cap: the digit is sized so its own height fills the two lines of text
+   beside it, and `align-items: start` puts their tops on the same line. */
+.chat-count { display: flex; align-items: start; gap: 14px; }
+.chat-count-value {
+  /* Measured against the rendered text rather than guessed. The two lines
+     beside it run 36px from the first line's cap to the second's baseline, and
+     Nunito digits stand ~0.735em tall, so 46px of type is exactly that height;
+     2px down puts the digit baseline on the second line's baseline.
+     The line box stays a full 1em — `background-clip: text` paints only inside
+     the element's box, so tightening line-height to fit slices the tops off
+     the digits. Margin does the positioning instead. */
+  font-size: 46px; font-weight: 900; line-height: 1; flex: none;
+  margin: 2px 0 0;
+  background-image: var(--sweep); background-size: 340% 100%; background-position: 70% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.chat-count-text { margin: 0; }
+
+.result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
+/* Raw event, in the browser's own modal layer. */
+.json-dialog {
+  border: none; border-radius: var(--radius); padding: 0; max-width: min(720px, 92vw);
+  width: 100%; max-height: 80vh; overflow: hidden; background: var(--ink); color: #fff;
+  /* Setting `display` costs the UA's own centring, so restate it. */
+  display: flex; flex-direction: column;
+  position: fixed; inset: 0; margin: auto;
+}
+.json-dialog:not([open]) { display: none; }
+.json-dialog::backdrop { background: rgba(27,19,48,.55); backdrop-filter: blur(3px); }
+.json-head { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.json-head p { margin: 0; font-size: 14px; font-weight: 700; color: rgba(255,255,255,.72); }
+.json-head .cmd-btn { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff; }
+.json-head .cmd-btn:hover { background: rgba(255,255,255,.14); }
+.json-dialog pre { overflow: auto; padding: 20px; margin: 0; }
+.json-dialog code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; color: #fff; }
+
+/* ── apps + live grid ────────────────────────────────────────────── */
+.apps { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 0; }
+.app { font-size: 15px; font-weight: 700; background: #fff; border: 1px solid var(--line);
+  border-radius: 14px; padding: 9px 16px; }
+.app-any { color: var(--ink-faint); font-weight: 600; }
+
+.grid-title { text-align: center; margin: 9vh 0 22px; font-size: 15px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .12em; color: var(--ink-faint); }
+/* Three across, three rows. Narrower viewports shed cards rather than rows:
+   hidden cards are display:none so their lazy thumbnails are never fetched. */
+.live-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) {
+  .live-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .live-grid { grid-template-columns: minmax(0, 1fr); }
+  .live-grid > .card:nth-child(n + 5) { display: none; }
+}
+.card {
+  background: #fff; border: 1px solid var(--line); border-radius: 20px; overflow: hidden;
+  box-shadow: 0 6px 22px rgba(27,19,48,.06); transition: transform .25s ease, box-shadow .25s ease;
+  display: block; color: inherit; border-bottom: 1px solid var(--line);
+}
+.card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(27,19,48,.11); }
+.card-thumb { aspect-ratio: 16/9; background: var(--sweep-soft); position: relative; overflow: hidden; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-live { position: absolute; top: 9px; left: 9px; font-size: 11px; font-weight: 900;
+  letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--pink);
+  padding: 3px 9px; border-radius: 999px; }
+.card-body { padding: 13px 15px 15px; }
+.card-title { font-size: 15px; font-weight: 800; line-height: 1.3; margin-bottom: 4px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-host { font-size: 13px; color: var(--ink-faint); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skeleton { aspect-ratio: 16/11; border-radius: 20px; background: var(--sweep-soft); opacity: .4;
+  animation: shimmer 1.6s ease-in-out infinite; }
+@keyframes shimmer { 0%,100% { opacity: .25; } 50% { opacity: .5; } }
+.grid-empty { grid-column: 1/-1; text-align: center; color: var(--ink-faint); }
+
+.ttl-line { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px 22px; margin: 0; }
+#chat .finder-hint { margin-top: 18px; }
+
+/* ── promises ────────────────────────────────────────────────────── */
+.promises { display: grid; gap: 14px; margin-top: 28px; }
+.promise { background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px 24px 20px; position: relative; overflow: hidden;
+  box-shadow: 0 6px 22px rgba(27,19,48,.05); }
+.promise::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--sweep-button); }
+.promise p { font-size: 16px; margin-bottom: 0; }
+.promise p + p { margin-top: 10px; }
+
+/* ── relays ──────────────────────────────────────────────────────── */
+.relay-cards { display: grid; gap: 16px; margin-top: 28px; }
+.relay-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px; box-shadow: 0 6px 22px rgba(27,19,48,.05); position: relative; }
+/* Same treatment as the "live right now" tile: centred on the corner arc. */
+.relay-card.relay-online::after {
+  content: ''; position: absolute; top: var(--radius); right: var(--radius);
+  width: 8px; height: 8px; margin: -4px -4px 0 0; border-radius: 50%; background: var(--pink);
+  animation: pulse 1.8s ease-out infinite;
+}
+.relay-role { font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  color: #fff; background: var(--sweep-button); display: inline-block; padding: 4px 12px; border-radius: 999px;
+  margin-bottom: 12px; }
+.relay-name { margin-bottom: 2px; }
+.relay-host { margin-bottom: 12px; }
+.relay-host code { font-size: 13px; }
+.relay-desc { font-size: 16px; }
+.relay-facts { list-style: none; display: grid; gap: 10px; margin: 16px 0; }
+.relay-facts li { font-size: 15px; color: var(--ink-soft); padding-left: 22px; position: relative; line-height: 1.5; }
+.relay-facts li::before { content: ''; position: absolute; left: 0; top: 8px; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--sweep-button); }
+.relay-facts b { color: var(--ink); }
+.relay-nips { font-size: 13px; color: var(--ink-faint); margin: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.nip { font-size: 12px; font-weight: 800; color: var(--purple); text-decoration: none;
+  background: rgba(131,56,236,.09); border: none; border-radius: 7px; padding: 3px 8px; }
+.nip:hover { background: rgba(131,56,236,.18); }
+.relay-source { margin: 16px 0 0; }
+#relays .stats-note { margin: 22px 0 0; }
+
+/* ── verify (dark band) ──────────────────────────────────────────── */
+.dark { background: var(--ink); color: #fff; border-radius: 48px; margin: 0 12px; overflow: hidden; }
+.dark h2 { color: #fff; }
+.dark p { color: rgba(255,255,255,.72); }
+.dark p strong, .dark p em { color: #fff; }
+.dark .kicker { color: var(--gold); }
+.dark a { color: var(--gold); border-bottom-color: rgba(255,190,11,.3); }
+.dark code { background: rgba(255,255,255,.10); color: #fff; }
+@media (max-width: 620px) { .dark { border-radius: 32px; margin: 0 8px; } }
+
+/* Command cards appear in two places: the dark "go and look" band, and inline
+   in the finder result on light paper. Light is the base; .dark overrides. */
+.cmds { display: grid; gap: 14px; margin-top: 28px; }
+.verify-source { margin: 28px 0 0; }
+.cmd { background: var(--paper-warm); border: 1px solid var(--line); border-radius: 18px;
+  padding: 18px 20px; margin-top: 18px; }
+.cmds .cmd { margin-top: 0; }
+.cmd-what { font-size: 14px; font-weight: 700; color: var(--ink-faint); margin-bottom: 10px; }
+.cmd-line { display: flex; align-items: flex-start; gap: 10px; }
+.cmd-line code { flex: 1; background: none; padding: 0; font-size: 13.5px; line-height: 1.6;
+  color: var(--ink); overflow-wrap: anywhere; }
+.cmd-line code .flag { color: var(--orange); font-weight: 700; }
+.cmd-line code .url { color: var(--blue); }
+.cmd-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.cmd-btn { font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  border-radius: 11px; padding: 6px 14px; text-decoration: none; }
+.cmd-btn:hover { border-color: var(--purple); }
+
+.dark .cmd { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.12); }
+.dark .cmd-what { color: rgba(255,255,255,.66); }
+.dark .cmd-line code { color: #fff; }
+.dark .cmd-line code .flag { color: var(--gold); }
+.dark .cmd-btn { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.06); color: #fff; }
+.dark .cmd-btn:hover { background: rgba(255,255,255,.14); }
+
+/* ── control ─────────────────────────────────────────────────────── */
+.steps { list-style: none; counter-reset: step; margin-top: 24px; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 14px;
+  padding: 16px 0; border-bottom: 1px solid var(--line); color: var(--ink-soft); font-size: 16px; }
+.steps li:last-child { border-bottom: none; }
+.steps li::before { content: '0' counter(step); font-size: 26px; font-weight: 900; line-height: 1.2;
+  background: var(--sweep); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.steps b { display: block; color: var(--ink); font-size: 17px; }
+
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.btn { display: inline-block; padding: 14px 26px; border-radius: 16px; font-weight: 800; font-size: 16px; border-bottom: none; }
+.btn.primary { background: var(--sweep-button); color: #fff; box-shadow: 0 8px 24px rgba(255,0,110,.25); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn.ghost:hover { border-color: var(--purple); }
+
+/* ── footer ──────────────────────────────────────────────────────── */
+footer { padding: 9vh 0 11vh; text-align: center; }
+/* The logotype itself rather than Great Vibes set to look like it — the
+   wordmark has its own drawn arrows, which type alone cannot reproduce. */
+.footbrand { margin-bottom: 10px; }
+.footbrand img { width: 172px; height: auto; display: inline-block; }
+footer p { font-size: 15px; margin-bottom: 6px; }
+.footlinks { color: var(--ink-faint); }

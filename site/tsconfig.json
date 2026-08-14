@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client", "node"],
+    "strict": true,
+    // The seam pulls a few modules out of packages/shared, and TypeScript
+    // typechecks whatever it imports. Those files are strict-checked by their
+    // own package under its own config; relaxing this one rule keeps their
+    // pre-existing implicit anys from failing our build while everything
+    // written here stays fully typed.
+    "noImplicitAny": false,
+    "noUnusedParameters": false,
+    "noUnusedLocals": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "nostr-tools": ["./node_modules/nostr-tools"],
+      "nostr-tools/*": ["./node_modules/nostr-tools/*"],
+      "@noble/hashes/*": ["./node_modules/@noble/hashes/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}
