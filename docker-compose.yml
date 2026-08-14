@@ -1,0 +1,136 @@
+# Livelier — full local stack: two relays + bridge worker + Postgres + a local
+# Owncast instance. Mirrors the Railway topology.
+#
+#   docker compose up -d
+#
+# Relay images are built from sibling repos (not this repo):
+#   docker build -t sw2:livelier-candidate <path-to-sw2>
+#   docker build -t ephemeral-relay:main   <path-to-ephemeral-relay>
+#
+# The poller runs from the mounted repo (deps already installed on host via
+# `npm install`) for fast iteration. For a fully self-contained image
+# (Railway), build the Dockerfile instead.
+services:
+  # Event relay (SW2): durable discovery events — 30311s + the bridge kind-0.
+  # Write whitelist = the bridge author pubkey ONLY; read whitelist empty so
+  # everyone can read. docker/sw2/write_whitelist.json must hold the pubkey
+  # derived from BRIDGE_KEY_SECRET (or BRIDGE_NSEC) — the committed file
+  # matches the default local dev secret.
+  sw2-relay:
+    image: sw2:livelier-candidate
+    restart: unless-stopped
+    ports:
+      - "7449:3334" # host ws://localhost:7449
+    environment:
+      RELAY_NAME: Livelier live relay (local)
+      RELAY_DESCRIPTION: Live events (30311) published by the Livelier bridge only. Publicly readable.
+    volumes:
+      - ./docker/sw2/write_whitelist.json:/app/write_whitelist.json:ro
+      - ./docker/sw2/read_whitelist.json:/app/read_whitelist.json:ro
+      - livelier_sw2_db:/app/db
+
+  # Chat relay (ephemeral-relay): bridged 1311s + ephemeral chatter identities.
+  # Strict kind allowlist, 3h TTL (kind 0 exempt), NIP-40/70 enforced, /demand
+  # feeds the bridge's demand-based source connections.
+  ephemeral-relay:
+    image: ephemeral-relay:main
+    restart: unless-stopped
+    ports:
+      - "7450:3335" # host ws://localhost:7450
+    environment:
+      DEMAND_ENDPOINT: "true"
+      DEMAND_KINDS: "1311"
+      AUTH_TOKEN: ${DEMAND_AUTH_TOKEN:-local-demand-token}
+      RELAY_NAME: Livelier chat relay (local)
+    volumes:
+      - livelier_ephemeral_db:/app/db
+
+  # Stand-in for "the wider network" in flag-on e2e runs: a second ephemeral
+  # relay the NETWORK_* override vars point at. Tests must NEVER use real
+  # public relays. No volume — scratch by design.
+  dummy-network-relay:
+    image: ephemeral-relay:main
+    restart: unless-stopped
+    ports:
+      - "7460:3335"
+    environment:
+      RELAY_NAME: Dummy network relay (e2e stand-in)
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bridges
+      POSTGRES_PASSWORD: bridges
+      POSTGRES_DB: bridges
+    ports:
+      - "5544:5432" # host 5544 -> container 5432
+    volumes:
+      - livelier_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bridges"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  poller:
+    image: node:20-bookworm-slim
+    restart: unless-stopped
+    working_dir: /repo
+    depends_on:
+      db:
+        condition: service_healthy
+      sw2-relay:
+        condition: service_started
+      ephemeral-relay:
+        condition: service_started
+    environment:
+      # Two-relay routing: 30311s + bridge kind-0 → SW2; 1311s + chatter and
+      # instance kind-0s → ephemeral. LOCAL_RELAY_URL is the required fallback.
+      LOCAL_RELAY_URL: ws://ephemeral-relay:3335
+      EVENT_RELAY_URL: ws://sw2-relay:3334
+      CHAT_RELAY_URL: ws://ephemeral-relay:3335
+      DATABASE_URL: postgres://bridges:bridges@db:5432/bridges
+      BRIDGE_KEY_SECRET: ${BRIDGE_KEY_SECRET:-local-dev-secret-change-me}
+      OWNCAST_DIRECTORY_URL: ${OWNCAST_DIRECTORY_URL:-https://owncast.directory/api/home}
+      OWNCAST_POLL_INTERVAL_MS: ${OWNCAST_POLL_INTERVAL_MS:-60000}
+      OWNCAST_REPUBLISH_INTERVAL_MS: ${OWNCAST_REPUBLISH_INTERVAL_MS:-900000}
+      # Chat gates (default off). Chat only touches rows with
+      # chat_enabled=true — the per-instance allowlist.
+      OWNCAST_CHAT_TO_NOSTR: ${OWNCAST_CHAT_TO_NOSTR:-false}
+      OWNCAST_CHAT_FROM_NOSTR: ${OWNCAST_CHAT_FROM_NOSTR:-false}
+      CHAT_EXPIRATION_SECONDS: ${CHAT_EXPIRATION_SECONDS:-10800}
+      # Demand-based source connections: only open a room's websocket once a
+      # Nostr viewer subscription names its #a.
+      DEMAND_URL: http://ephemeral-relay:3335/demand
+      DEMAND_AUTH_TOKEN: ${DEMAND_AUTH_TOKEN:-local-demand-token}
+      # Network gates — both OFF by default (reads are ungated; these gate
+      # profile WRITES and the chat firehose). Flag-on e2e points the sets at
+      # dummy-network-relay (local); test writes never touch the real network.
+      NETWORK_PROFILE_PUBLISH_ENABLED: ${NETWORK_PROFILE_PUBLISH_ENABLED:-false}
+      NETWORK_CHAT_READ_ENABLED: ${NETWORK_CHAT_READ_ENABLED:-false}
+      NETWORK_PROFILE_WRITE_RELAYS: ${NETWORK_PROFILE_WRITE_RELAYS:-}
+      NETWORK_CHAT_READ_RELAYS: ${NETWORK_CHAT_READ_RELAYS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ./:/repo
+    command: sh -c "npx ts-node src/index.ts"
+
+  # Local test fleet: our own Owncast instance. Chat + lifecycle are tested
+  # exclusively against this (zero real-stream contact). Feed it with:
+  #   ffmpeg -re -f lavfi -i testsrc2=size=640x360:rate=30 -f lavfi -i sine \
+  #     -c:v libx264 -preset veryfast -c:a aac -f flv rtmp://localhost:19350/live/<streamkey>
+  # In-network URL for bridge_instances rows: http://owncast-test:8080
+  owncast-test:
+    image: owncast/owncast:latest
+    restart: unless-stopped
+    ports:
+      - "8585:8080"  # web/admin/API on host
+      - "19350:1935" # RTMP ingest from host
+    tmpfs:
+      - /app/data # ephemeral: default stream key/admin creds each boot
+
+volumes:
+  livelier_sw2_db:
+  livelier_ephemeral_db:
+  livelier_pg_data:

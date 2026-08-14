@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Livelier — more reach for self-hosted live streamers</title>
+<meta name="description" content="Livelier is a free, open-source, community-driven project that helps self-hosted live streamers get more reach — and livelier livestreams.">
+<style>
+  :root{
+    --bg:#0c0912;
+    --bg2:#120d1c;
+    --ink:#f4eeff;
+    --dim:#a89bc4;
+    --faint:#6b5f8a;
+    --coral:#ff6a4d;
+    --amber:#ffb454;
+    --violet:#c084fc;
+    --live:#ff4d5e;
+    --card:#171126;
+    --line:#2a2140;
+    --max:660px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--coral);color:#fff}
+
+  /* scroll progress */
+  #progress{position:fixed;top:0;left:0;height:3px;width:0;
+    background:linear-gradient(90deg,var(--coral),var(--amber),var(--violet));
+    z-index:99;transition:width .1s linear}
+
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+  section{padding:15vh 0}
+
+  /* reveal animation */
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .8s ease,transform .8s ease}
+  .reveal.in{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.12s}
+  .reveal.d2{transition-delay:.24s}
+  .reveal.d3{transition-delay:.36s}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .reveal{opacity:1;transform:none;transition:none}
+    .dot{animation:none}
+    #progress{display:none}
+  }
+
+  /* hero */
+  .hero{min-height:96vh;display:flex;flex-direction:column;justify-content:center;padding:10vh 0 6vh;
+    background:radial-gradient(1200px 600px at 70% -10%,rgba(192,132,252,.12),transparent 60%),
+               radial-gradient(900px 500px at 10% 110%,rgba(255,106,77,.10),transparent 60%)}
+  .live-badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.14em;
+    color:var(--dim);text-transform:uppercase;border:1px solid var(--line);
+    padding:7px 14px;border-radius:999px;width:max-content;margin-bottom:34px;background:rgba(23,17,38,.6)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--live);animation:pulse 1.6s ease-out infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,77,94,.55)}70%{box-shadow:0 0 0 10px rgba(255,77,94,0)}100%{box-shadow:0 0 0 0 rgba(255,77,94,0)}}
+  h1{font-size:clamp(38px,7vw,64px);line-height:1.06;letter-spacing:-.02em;font-weight:800;margin-bottom:28px}
+  .grad{background:linear-gradient(92deg,var(--coral) 5%,var(--amber) 45%,var(--violet) 95%);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(18px,2.6vw,22px);color:var(--dim);max-width:560px}
+  .lede strong{color:var(--ink);font-weight:600}
+  .scrollhint{margin-top:9vh;color:var(--faint);font-size:14px;display:flex;align-items:center;gap:10px}
+  .scrollhint span{display:inline-block;animation:bob 2s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+  @media (prefers-reduced-motion: reduce){.scrollhint span{animation:none}}
+
+  /* section furniture */
+  .kicker{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-bottom:16px;
+    display:flex;align-items:center;gap:12px}
+  .kicker::before{content:"";display:inline-block;width:26px;height:1px;background:linear-gradient(90deg,var(--coral),var(--violet))}
+  h2{font-size:clamp(28px,4.6vw,40px);line-height:1.15;letter-spacing:-.015em;font-weight:750;margin-bottom:20px}
+  p{color:var(--dim);margin-bottom:18px;font-size:17px}
+  p strong{color:var(--ink);font-weight:600}
+  p em{color:var(--ink);font-style:italic}
+  a{color:var(--amber);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* app pills */
+  .apps{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0 8px}
+  .app{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 16px;
+    font-size:15px;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .app i{width:9px;height:9px;border-radius:3px;display:inline-block;
+    background:linear-gradient(135deg,var(--coral),var(--violet))}
+
+  /* chat mock */
+  .chat-demo{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin:34px 0 10px}
+  @media(max-width:620px){.chat-demo{grid-template-columns:1fr;}.bridge-arrow{transform:rotate(90deg);margin:0 auto}}
+  .chat-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+  .chat-box h4{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .msg{border-radius:12px;padding:9px 12px;font-size:14px;margin-bottom:9px;background:var(--bg2);border:1px solid var(--line)}
+  .msg b{display:block;font-size:12px;margin-bottom:2px}
+  .msg.you b{color:var(--amber)}
+  .msg.them b{color:var(--violet)}
+  .msg span{color:var(--dim)}
+  .bridge-arrow{color:var(--faint);font-size:22px;text-align:center;line-height:1.1}
+  .bridge-arrow small{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-top:4px}
+
+  /* promise cards */
+  .promises{display:grid;gap:14px;margin-top:30px}
+  .promise{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 22px 18px;
+    position:relative;overflow:hidden}
+  .promise::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--coral),var(--violet))}
+  .promise h3{font-size:18px;margin-bottom:8px;font-weight:700}
+  .promise p{font-size:15px;margin:0}
+  .promise .why{margin-top:10px;font-size:13px;color:var(--faint)}
+
+  /* control buttons */
+  .ctas{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+  .btn{display:inline-block;padding:13px 24px;border-radius:12px;font-weight:650;font-size:15px}
+  .btn.primary{background:linear-gradient(92deg,var(--coral),var(--amber));color:#1c0d08}
+  .btn.primary:hover{text-decoration:none;filter:brightness(1.07)}
+  .btn.ghost{border:1px solid var(--line);color:var(--ink);background:var(--card)}
+  .btn.ghost:hover{text-decoration:none;border-color:var(--violet)}
+
+  /* numbered steps */
+  .steps{counter-reset:step;margin-top:26px;display:grid;gap:6px}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:none}
+  .step::before{counter-increment:step;content:"0" counter(step);
+    font-size:22px;font-weight:800;background:linear-gradient(180deg,var(--coral),var(--violet));
+    -webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.3}
+  .step p{margin:0;font-size:15px}
+  .step p strong{display:block;font-size:16px;margin-bottom:2px}
+
+  footer{border-top:1px solid var(--line);padding:60px 0 80px;color:var(--faint);font-size:14px}
+  footer .brand{font-weight:750;color:var(--ink);font-size:16px;margin-bottom:8px}
+  footer a{color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div class="live-badge reveal"><span class="dot"></span> you probably just saw us in your chat</div>
+    <h1 class="reveal d1">Hello! We're <span class="grad">Livelier</span>.<br>Pleased to meet you.</h1>
+    <p class="lede reveal d2">Livelier is a <strong>free, open-source, community-driven project</strong> that helps self-hosted live streamers get more reach — and livelier livestreams.</p>
+    <div class="scrollhint reveal d3">here's exactly what's going on <span>↓</span></div>
+  </div>
+</header>
+
+<!-- ============ 1 WHAT HAPPENED ============ -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">what just happened</div>
+    <h2 class="reveal">Your stream has fans beyond your server.</h2>
+    <p class="reveal d1">You listed your server in the public <strong>Owncast directory</strong> — Livelier watches it. When you go live, we announce your stream to <strong>Nostr</strong>, an open social network with apps full of people who love independent live video.</p>
+    <p class="reveal d2">And when one of those people opens your stream's chat, Livelier joins your chat too — <strong>under its own name, never in disguise</strong>. That join <em>is</em> our introduction. If you saw "Livelier" appear, it means someone out there just tuned in.</p>
+  </div>
+</section>
+
+<!-- ============ 2 REACH ============ -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">more reach</div>
+    <h2 class="reveal">Go live once. Get discovered everywhere.</h2>
+    <p class="reveal d1">The moment you're live, your stream appears in every app that speaks the open live-streaming standard — with your title, your artwork, and a player pointed straight at <strong>your server</strong>. Nothing is re-hosted, nothing is uploaded. New viewers, same self-hosted stream.</p>
+    <div class="apps reveal d2">
+      <span class="app"><i></i>Zap.Stream</span>
+      <span class="app"><i></i>Amethyst</span>
+      <span class="app"><i></i>Primal</span>
+      <span class="app"><i></i>Shosho</span>
+      <span class="app"><i></i>…any NIP-53 app</span>
+    </div>
+    <p class="reveal d3" style="font-size:14px;color:var(--faint)">No account to create. No algorithm to appease. Just an open protocol doing what open protocols do.</p>
+  </div>
+</section>
+
+<!-- ============ 3 CHAT ============ -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">chat, both ways</div>
+    <h2 class="reveal">One conversation, two worlds.</h2>
+    <p class="reveal d1">For channels that switch it on, chat flows in both directions: messages from Nostr viewers appear in your Owncast chat with their real names, and your community's replies reach them right back. Nobody has to leave home to hang out together.</p>
+    <div class="chat-demo reveal d2">
+      <div class="chat-box">
+        <h4>your owncast chat</h4>
+        <div class="msg you"><b>mila_streams</b><span>synth set starting now 🎹</span></div>
+        <div class="msg them"><b>keiko ⚡</b><span>found you on Zap.Stream — this rips</span></div>
+        <div class="msg you"><b>mila_streams</b><span>welcome in, keiko!</span></div>
+      </div>
+      <div class="bridge-arrow">⇄<small>livelier</small></div>
+      <div class="chat-box">
+        <h4>the nostr side</h4>
+        <div class="msg them"><b>keiko ⚡</b><span>found you on Zap.Stream — this rips</span></div>
+        <div class="msg you"><b>mila_streams</b><span>welcome in, keiko!</span></div>
+        <div class="msg them"><b>orbital.dev</b><span>zapping 210 sats 🔥</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4 PROMISES ============ -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">the part that matters</div>
+    <h2 class="reveal">Built around your community's trust.</h2>
+    <p class="reveal d1">We built an earlier version of this bridge, showed it to streamers, and listened hard to what they told us. The result is a short list of promises that are <strong>enforced by the architecture</strong> — not by good intentions.</p>
+    <div class="promises">
+      <div class="promise reveal">
+        <h3>Your viewers' words don't persist.</h3>
+        <p>Mirrored chat lives on one dedicated relay, is marked <em>do-not-share</em> at the protocol level, and <strong>self-destructs after three hours</strong>. It is never archived, never syndicated, never searchable later.</p>
+        <div class="why">Streamers told us: "I can't promise my chat won't live forever somewhere." Now you can.</div>
+      </div>
+      <div class="promise reveal d1">
+        <h3>No company in your chat.</h3>
+        <p>Livelier is a community project with a name of its own. It joins your chat as itself, attaches <strong>no brand to you or your viewers</strong>, and mirrors nothing under a corporate flag.</p>
+        <div class="why">Streamers told us: "a company injected itself into my chat." Never again.</div>
+      </div>
+      <div class="promise reveal d2">
+        <h3>No impersonation, ever.</h3>
+        <p>Everything we publish is <strong>clearly labelled as a bridge</strong> and links back to your server as the source. Your channel keeps one stable identity that is honestly marked as a mirror — not a fake "you".</p>
+      </div>
+      <div class="promise reveal d3">
+        <h3>Your stream, your rules.</h3>
+        <p>We never edit, filter, or gate your content. Marked your stream adult? We pass the label along and let viewers' apps handle it. And we're feather-light on your server: <strong>one playlist check per minute</strong> — about a twentieth of a single viewer — and we only connect to chat when someone is actually watching.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 CONTROL ============ -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">you're in control</div>
+    <h2 class="reveal">Lean in, or wave us off. One message either way.</h2>
+    <div class="steps reveal d1">
+      <div class="step"><p><strong>Do nothing</strong> Your live streams stay discoverable to Nostr viewers, exactly as they already are through the public directory you listed yourself in.</p></div>
+      <div class="step"><p><strong>Turn chat on</strong> Two-way chat runs on a per-channel allowlist — it only ever switches on for your stream deliberately. Ask, and we'll flip it.</p></div>
+      <div class="step"><p><strong>Opt out entirely</strong> Want your instance left alone? Say the word and we remove it — and its history — from the bridge.</p></div>
+    </div>
+    <div class="ctas reveal d2">
+      <a class="btn primary" href="https://github.com/r0d8lsh0p/livelier/issues/new?title=Livelier%3A%20my%20instance">Talk to us on GitHub</a>
+      <a class="btn ghost" href="https://github.com/r0d8lsh0p/livelier">Read the source</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 OSS ============ -->
+<section>
+  <div class="wrap">
+    <div class="kicker reveal">free &amp; open source</div>
+    <h2 class="reveal">Community-driven. Auditable. Forkable.</h2>
+    <p class="reveal d1">Every line of Livelier is open source — the bridge, the relays, the promises above. Audit exactly what we publish about your stream. Run your own bridge if you'd rather. Or join in: the architecture is built for <strong>adding new networks</strong>, and PeerTube is next on the wishlist.</p>
+    <p class="reveal d2">Self-hosters made the independent live web. Livelier just helps it find its audience.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><span class="grad">Livelier</span></div>
+    <p>Bridging self-hosted streams to the open social web · <a href="https://livelier.live">livelier.live</a> · <a href="https://github.com/r0d8lsh0p/livelier">source</a></p>
+  </div>
+</footer>
+
+<script>
+  // scroll progress
+  const bar = document.getElementById('progress');
+  addEventListener('scroll', () => {
+    const h = document.documentElement;
+    bar.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  }, { passive: true });
+
+  // reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+</script>
+</body>
+</html>
