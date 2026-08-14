@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="site/brand/assets/Logotext.png" alt="Livelier.live" width="380">
+<img src="packages/site/brand/assets/Logotext.png" alt="Livelier.live" width="380">
 
 **For *livelier* live streams.**
 
@@ -234,14 +234,9 @@ cd packages/site && npm run typecheck    # website
 
 An instance appears on the bridge because it is listed in a public directory.
 Any streamer can [open an issue](https://github.com/r0d8lsh0p/livelier/issues/new)
-naming their server to have chat switched off, or to be removed entirely — no
-live events, no chat, no liveness probing. Retracting already-published events
-is a further explicit step; ask and it will be done.
-
-## History
-
-Livelier began life inside the Shosho monorepo and was extracted as a
-standalone project in August 2026.
+naming their server to be removed from the bridge — no live events, no chat,
+no liveness probing. Retracting already-published events is a further explicit
+step; ask and it will be done.
 
 ## License
 

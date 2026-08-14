@@ -106,15 +106,11 @@ small and changes on the order of minutes.
 ## Contact, opt-out, contributing
 
 An Owncast instance appears here because it is listed in the public Owncast
-directory. Open an issue at https://github.com/r0d8lsh0p/livelier/issues naming
-the instance URL to ask for either of:
-
-- Chat switched off for that instance, leaving its live events published.
-- Out entirely: no live events, no chat, no liveness probing.
-
-Chat is not a separate subscription a streamer opted into, so an instance that
-wants nothing to do with the bridge should ask for the second. Retracting events
-already published is a further explicit step; ask for it and it will be done.
+directory. To opt out, open an issue at
+https://github.com/r0d8lsh0p/livelier/issues naming the instance URL, and the
+instance is removed from the bridge: no live events, no chat, no liveness
+probing. Retracting events already published is a further explicit step; ask
+for it and it will be done.
 
 Contributions are welcome, and further networks are added as adapters rather
 than forks — see the contributing guide in the repository.
