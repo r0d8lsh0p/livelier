@@ -77,10 +77,9 @@ async function main(): Promise<void> {
     });
 
     if (owncast.discoveryEnabled) {
-      // The bridge operator kind-0 — replaceable, so boot republish is idempotent.
-      await publisher.publishBridgeIdentity(bridgeSigner, core.bridgeName, [
-        ...new Set([core.eventRelayUrl, ...profileRelays]),
-      ]);
+      // The bridge identity's own kind-0 is the operator's to curate, published
+      // out-of-band with the bridge nsec. The bridge never writes it: kind-0 is
+      // replaceable, so an automated publish would clobber the curated profile.
       const discovery = new DiscoveryBridgeService(
         {
           bridgeKeySecret: core.bridgeKeySecret,

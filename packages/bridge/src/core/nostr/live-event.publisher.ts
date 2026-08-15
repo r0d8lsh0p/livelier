@@ -87,26 +87,6 @@ export class LiveEventPublisher {
   }
 
   /**
-   * Publish the bridge's own operator kind-0 — the author identity of every
-   * 30311. Name is the configured bridge name.
-   */
-  async publishBridgeIdentity(
-    signer: DerivedKeySigner,
-    bridgeName: string,
-    relayUrls: string[]
-  ): Promise<Record<string, boolean>> {
-    const content = JSON.stringify({
-      name: bridgeName,
-      display_name: bridgeName,
-      about:
-        'Bridges live Owncast streams from the public Owncast directory onto Nostr as NIP-53 live events, with NIP-48 proxy attribution. Automated service.',
-      bot: true,
-    });
-    const event = await nostrClient.createSignedEvent(signer, 0, content, []);
-    return nostrClient.publishEvent(event, relayUrls);
-  }
-
-  /**
    * Publish a kind-30311 live event with NIP-53 `relays` + NIP-48 `proxy` tags.
    * Signed by the bridge identity; the instance's derived key stays the `p` host.
    */

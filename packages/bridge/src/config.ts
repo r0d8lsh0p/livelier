@@ -16,7 +16,8 @@ import { NETWORK_CHAT_READ_RELAYS, NETWORK_PROFILE_WRITE_RELAYS } from './core/r
 export interface CoreConfig {
   /**
    * Public-facing bridge name ("Livelier", livelier.live); used as the
-   * bridge identity's kind-0 name and as the `client` tag on every event.
+   * `client` tag on every event. The bridge identity's own kind-0 is curated
+   * by the operator out-of-band — the bridge never writes it.
    */
   bridgeName: string;
   /**
@@ -28,8 +29,8 @@ export interface CoreConfig {
   /** Default relay when EVENT_RELAY_URL/CHAT_RELAY_URL are unset (single-relay setups). */
   localRelayUrl: string;
   /**
-   * Relay for durable discovery events — 30311s, the bridge kind-0, and
-   * per-instance host kind-0s (the SW2 "only we publish" relay). Defaults to
+   * Relay for durable discovery events — 30311s and per-instance host
+   * kind-0s (the SW2 "only we publish" relay). Defaults to
    * localRelayUrl for single-relay setups.
    */
   eventRelayUrl: string;

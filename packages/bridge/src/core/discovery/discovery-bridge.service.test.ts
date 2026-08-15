@@ -112,7 +112,6 @@ function makeStore(row: InstanceRow, isNew: boolean) {
 function makePublisher() {
   return {
     publishProfile: jest.fn().mockResolvedValue(OK),
-    publishBridgeIdentity: jest.fn().mockResolvedValue(OK),
     publishLiveEvent: jest.fn().mockResolvedValue(OK),
   };
 }
