@@ -2,7 +2,7 @@
 # Local iteration uses docker-compose.yml, which mounts the repo instead.
 #
 #   docker build -t livelier .
-FROM node:20-bookworm-slim
+FROM node:24-bookworm-slim
 
 WORKDIR /app
 

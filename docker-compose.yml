@@ -74,7 +74,7 @@ services:
       retries: 10
 
   poller:
-    image: node:20-bookworm-slim
+    image: node:24-bookworm-slim
     restart: unless-stopped
     working_dir: /repo
     depends_on:

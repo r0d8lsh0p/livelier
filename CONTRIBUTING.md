@@ -22,7 +22,7 @@ that surprise people:
 
 ## Development setup
 
-Requirements: Node 20+, Docker.
+Requirements: Node 24+, Docker.
 
 ```bash
 npm install
