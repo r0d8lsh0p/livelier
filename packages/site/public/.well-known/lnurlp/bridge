@@ -1,0 +1,22 @@
+{
+  "status": "OK",
+  "tag": "payRequest",
+  "commentAllowed": 255,
+  "callback": "https://getalby.com/lnurlp/rodbishop/callback",
+  "metadata": "[[\"text/identifier\",\"rodbishop@getalby.com\"],[\"text/plain\",\"Sats for livelier\"]]",
+  "minSendable": 1000,
+  "maxSendable": 10000000000,
+  "payerData": {
+    "name": {
+      "mandatory": false
+    },
+    "email": {
+      "mandatory": false
+    },
+    "pubkey": {
+      "mandatory": false
+    }
+  },
+  "nostrPubkey": "fb3e3e0e3becbc3b90db821270d0ef7da2d8ce86dc4fc3f44b3977b82b70b64f",
+  "allowsNostr": true
+}
