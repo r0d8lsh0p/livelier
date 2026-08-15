@@ -9,6 +9,18 @@ All scripts target the DB in `DATABASE_URL` (default: the local compose stack,
 `postgres://bridges:bridges@localhost:5544/bridges`) and print the target host
 first — check it before `--confirm`.
 
+## db-status.mjs
+
+Read-only, one page: migrations applied, instance counts by
+source/status/flag, snapshot freshness. No mutation path exists in this
+script, so it is the right first move against any environment — check the
+state here before reaching for a flag lever below.
+
+```bash
+node operations/db-status.mjs                       # local compose stack
+DATABASE_URL=... node operations/db-status.mjs      # staging / production
+```
+
 ## Instance flags: set-discovery / set-chat
 
 One row per bridged instance in `bridge_instances`; two symmetric booleans,
