@@ -126,7 +126,8 @@ async function loadRelays(): Promise<void> {
 
   // The retention window is the relay's to state, not ours. Both the hero tile
   // and the sentence in the chat section take it from the NIP-11 document, so
-  // neither can drift from the policy actually being enforced.
+  // neither can drift from the policy actually being enforced. When the relay
+  // cannot be read the hero tile stays at its dash — unknown is not "3 hours".
   const phrase = retentionPhrase(chatInfo);
   if (!phrase) return;
 
