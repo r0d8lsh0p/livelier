@@ -953,17 +953,6 @@ class ClientService extends EventEmitter {
     const relays = this.filterCoolingRelays(Array.from(new Set(urls)));
     const filters = Array.isArray(filter) ? filter : [filter];
 
-    // Log query creation
-    const queriedKinds: number[] = [];
-    filters.forEach((f: Filter) => {
-      if (f.kinds) {
-        f.kinds.forEach(k => {
-          if (k !== undefined) queriedKinds.push(k);
-        });
-      }
-    });
-    const kindsStr = queriedKinds.length > 0 ? `kinds ${queriedKinds.join(',')}` : '';
-    console.debug(`🤖⬆️ Query for ${kindsStr}`);
     const filterSummary = ClientService.summarizeFilters(filters);
 
     const _knownIds = new Set<string>();
@@ -1148,7 +1137,6 @@ class ClientService extends EventEmitter {
     userRelays?: RelayList | string[] | null
   ): Promise<Record<string, boolean>> {
     const relayUrls = this.getRelayUrls(userRelays);
-    console.debug(`🤖⬆️ Publishing kind ${event.kind} to ${relayUrls.length} relays`);
 
     // We signed this event ourselves — relay echoes need no Schnorr verify.
     markEventVerified(event.id);
