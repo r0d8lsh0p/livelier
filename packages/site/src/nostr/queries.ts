@@ -116,21 +116,16 @@ function str(v: unknown): string | undefined {
 }
 
 /**
- * How many creators the bridge has an identity for, counted off the `kind:0`
- * profiles on the chat relay — the identity record, one per bridged channel.
+ * How many channels the bridge has published for, counted as distinct hosts
+ * across the live events.
  *
- * `exclude` carries the bridge's own key, which also has a profile there.
- * Note that ephemeral chatter identities publish `kind:0` to this relay too,
- * so this leans slightly high; counting distinct hosts off the live events
- * instead would be exact.
+ * The `p` tag is the channel's own derived key and the bridge mints exactly one
+ * per instance, so the set size is the number of bridged channels exactly. The
+ * obvious alternative — counting `kind:0` profiles on the chat relay — reads
+ * high, because every ephemeral chatter publishes a profile there too.
  */
-export async function fetchCreatorCount(exclude: Set<string>): Promise<number | null> {
-  const { events, reached } = await fetchEvents([config.chatRelay], { kinds: [0], limit: 1000 });
-  if (!reached) return null;
-  const authors = new Set(
-    events.map((event) => event.pubkey).filter((pubkey) => !exclude.has(pubkey))
-  );
-  return authors.size;
+export function countBridgedChannels(channels: Channel[]): number {
+  return new Set(channels.map((channel) => channel.hostPubkey).filter(Boolean)).size;
 }
 
 /**

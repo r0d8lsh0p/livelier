@@ -9,7 +9,7 @@ import {
 import { currentRetentionPhrase } from './relays';
 import { countUp } from '../ui/motion';
 import { openJsonDialog } from '../ui/json-dialog';
-import { escapeHtml } from '../ui/escape';
+import { escapeAttr, escapeHtml, safeHref } from '../ui/escape';
 import { njumpAddress } from '../nostr/njump';
 
 interface FinderElements {
@@ -118,13 +118,20 @@ function resultCard(channel: Channel): HTMLElement {
 
   const statusClass = channel.status === 'live' ? 'live' : 'ended';
   const serverUrl = channel.proxyUrl;
+  // Shown as a link only if it is one this page will follow; otherwise the
+  // address is still printed, just as text.
+  const serverHref = safeHref(serverUrl);
   const watchUrl = channel.streaming ?? channel.proxyUrl;
 
   card.innerHTML = `
     <h3>${escapeHtml(channel.title)}</h3>
     ${channel.summary ? `<p class="result-summary">${escapeHtml(channel.summary)}</p>` : ''}
     ${serverUrl
-      ? `<p class="result-url"><a href="${escapeHtml(serverUrl)}" target="_blank" rel="noopener">${escapeHtml(serverUrl)}</a></p>`
+      ? `<p class="result-url">${
+          serverHref
+            ? `<a href="${escapeAttr(serverHref)}" target="_blank" rel="noopener">${escapeHtml(serverUrl)}</a>`
+            : escapeHtml(serverUrl)
+        }</p>`
       : ''}
     <div class="result-meta">
       <span class="pill ${statusClass}">${escapeHtml(channel.status)}</span>

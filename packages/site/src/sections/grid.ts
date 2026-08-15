@@ -1,4 +1,5 @@
 import type { Channel, ChannelProfile } from '../nostr/queries';
+import { escapeAttr, escapeHtml, safeHref } from '../ui/escape';
 
 /**
  * The currently-live channels, as cards.
@@ -23,14 +24,21 @@ export function renderLiveGrid(
 
 function card(channel: Channel, profiles: Map<string, ChannelProfile>): HTMLElement {
   const profile = channel.hostPubkey ? profiles.get(channel.hostPubkey) : undefined;
-  const href = channel.proxyUrl ?? profile?.website ?? '#';
+  const href = safeHref(channel.proxyUrl) ?? safeHref(profile?.website);
+  const thumb = safeHref(channel.image);
 
   const el = document.createElement('a');
   el.className = 'card';
-  el.href = href;
-  el.target = '_blank';
-  el.rel = 'noopener';
   el.setAttribute('data-reveal', '');
+
+  // An anchor with no href is still an anchor, and `.card` styles it either
+  // way — so a channel that published an address this page won't follow simply
+  // renders as a card that doesn't click, rather than as a link to nowhere.
+  if (href) {
+    el.href = href;
+    el.target = '_blank';
+    el.rel = 'noopener';
+  }
 
   // Many instances name the channel after the stream, which would print the
   // same string twice. Fall back to the server it lives on — more useful anyway.
@@ -42,7 +50,7 @@ function card(channel: Channel, profiles: Map<string, ChannelProfile>): HTMLElem
 
   el.innerHTML = `
     <div class="card-thumb">
-      ${channel.image ? `<img src="${escapeAttr(channel.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
+      ${thumb ? `<img src="${escapeAttr(thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
       <span class="card-live">live</span>
     </div>
     <div class="card-body">
@@ -67,12 +75,3 @@ function hostname(url: string | undefined): string | undefined {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
-  );
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value).replace(/`/g, '&#96;');
-}

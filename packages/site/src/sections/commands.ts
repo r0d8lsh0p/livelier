@@ -1,4 +1,5 @@
 import { config, relayHost } from '../config';
+import { escapeHtml } from '../ui/escape';
 
 export interface CommandCard {
   what: string;
@@ -38,14 +39,6 @@ export function defaultCommands(): CommandCard[] {
   ];
 }
 
-/** A channel-specific lookup, offered once someone has found themselves. */
-export function channelCommand(dTag: string): CommandCard {
-  return {
-    what: 'This channel, by the id derived from its address.',
-    cmd: `nak req -k 30311 -d ${dTag} wss://${relayHost(config.eventRelay)}`,
-  };
-}
-
 /** Grimoire speaks nak's command language; it just doesn't want the program name. */
 export function grimoireUrl(cmd: string): string {
   return config.grimoireRun + encodeURIComponent(cmd.replace(/^nak\s+/, ''));
@@ -62,12 +55,6 @@ function highlight(cmd: string): string {
       return safe;
     })
     .join(' ');
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
-  );
 }
 
 export function renderCommandCard(card: CommandCard): HTMLElement {

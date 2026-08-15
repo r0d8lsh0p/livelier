@@ -2,10 +2,10 @@ import { config } from './config';
 import { setClientName } from './seam/shared';
 import {
   bridgeAuthored,
+  countBridgedChannels,
   fetchChannelProfiles,
   fetchChannels,
   fetchChatMessages,
-  fetchCreatorCount,
   type Channel,
 } from './nostr/queries';
 import { countUp, initProgressBar, initReveal } from './ui/motion';
@@ -74,15 +74,9 @@ async function loadChannels(reveal: (root?: ParentNode) => void): Promise<void> 
 
   liveChannels = channels.filter((channel) => channel.status === 'live');
   setCount('#stat-live', liveChannels.length);
-
-  // Every live event is authored by the bridge itself; its own profile sits on
-  // the chat relay alongside the creators', so exclude it from the count.
-  const bridgeKeys = new Set(channels.map((channel) => channel.event.pubkey));
-  void fetchCreatorCount(bridgeKeys)
-    .then((count) => {
-      if (count !== null) setCount('#stat-creators', count);
-    })
-    .catch(() => undefined);
+  // Both numbers come out of the same answer, so they cannot disagree with each
+  // other or with the grid below them.
+  setCount('#stat-creators', countBridgedChannels(channels));
 
   if (!grid) return;
 

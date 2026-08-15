@@ -9,7 +9,7 @@ import {
 } from '../nostr/queries';
 import type { NostrEvent } from '../seam/shared';
 import { njumpEvent } from '../nostr/njump';
-import { escapeHtml, preciseDelta } from '../ui/escape';
+import { escapeAttr, escapeHtml, preciseDelta, safeHref } from '../ui/escape';
 import { openJsonDialog } from '../ui/json-dialog';
 import { currentRetentionPhrase, currentChatRelayPolicy } from './relays';
 
@@ -138,8 +138,9 @@ function sampleCard(message: NostrEvent, profile: ChannelProfile | undefined): H
 
 /** Bridged chatters usually have no picture; fall back to their initial. */
 function avatar(profile: ChannelProfile | undefined, name: string): string {
-  if (profile?.picture) {
-    return `<img class="chat-avatar" src="${escapeHtml(profile.picture)}" alt=""
+  const picture = safeHref(profile?.picture);
+  if (picture) {
+    return `<img class="chat-avatar" src="${escapeAttr(picture)}" alt=""
       loading="lazy" referrerpolicy="no-referrer">`;
   }
   return `<span class="chat-avatar chat-avatar-initial">${escapeHtml(name.slice(0, 1).toUpperCase())}</span>`;
