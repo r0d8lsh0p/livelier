@@ -2,10 +2,16 @@
 // have any events on major PUBLIC relays. Pulls the author set from the local
 // relay, then REQs each public relay for those authors. Expect zero.
 //
-// Usage: node operations/check-exclusivity.mjs
+// The bridge identity itself is deliberately public (curated kind-0, relay
+// list), so exclude it — EXCLUDE_PUBKEYS takes comma-separated hex pubkeys.
+// Once NETWORK_PROFILE_PUBLISH_ENABLED is live, host kind-0s on the network
+// are intended too; this check then only proves 30311s/1311s stay home.
+//
+// Usage: [EXCLUDE_PUBKEYS=<hex,hex>] node operations/check-exclusivity.mjs
 import WebSocket from 'ws';
 
 const LOCAL = process.env.LOCAL_RELAY_URL || 'ws://localhost:7449';
+const EXCLUDE = new Set((process.env.EXCLUDE_PUBKEYS || '').split(',').filter(Boolean));
 const PUBLIC_RELAYS = ['wss://relay.damus.io', 'wss://nos.lol'];
 
 function collectAuthors(url) {
@@ -44,7 +50,8 @@ function countFor(url, authors) {
 }
 
 const authors = await collectAuthors(LOCAL);
-console.log(`Derived proxy authors on local relay: ${authors.size}`);
+for (const pk of EXCLUDE) authors.delete(pk);
+console.log(`Derived proxy authors on local relay: ${authors.size}${EXCLUDE.size ? ` (${EXCLUDE.size} excluded)` : ''}`);
 if (authors.size === 0) {
   console.log('No authors yet — run the poller first.');
   process.exit(0);

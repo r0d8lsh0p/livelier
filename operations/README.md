@@ -53,6 +53,21 @@ node operations/set-chat.mjs https://live.example on --confirm
 node operations/set-chat.mjs https://live.example off --confirm
 ```
 
+## republish-profiles.mjs
+
+The fan-out step after `NETWORK_PROFILE_PUBLISH_ENABLED` turns on: kind-0
+publishing is hash-gated, so existing rows never reach the network until their
+`profile_hash` is cleared. This script clears it in paced batches (default 15
+rows per poll cycle) and the bridge — still the only writer — republishes each
+profile on its next cycle to the full write set. The pacing keeps the network
+relay's first sight of these authors a slow drip, not a burst.
+
+```bash
+node operations/republish-profiles.mjs                 # dry-run: batch plan
+node operations/republish-profiles.mjs --confirm       # execute, paced
+node operations/republish-profiles.mjs <url> --confirm # one instance only
+```
+
 ## retract-instance.mjs
 
 Manually removes an instance's published events from the relays: a NIP-09
