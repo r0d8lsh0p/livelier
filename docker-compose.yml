@@ -30,8 +30,11 @@ services:
       - livelier_sw2_db:/app/db
 
   # Chat relay (ephemeral-relay): bridged 1311s + ephemeral chatter identities.
-  # Strict kind allowlist, 3h TTL (kind 0 exempt), NIP-40/70 enforced, /demand
-  # feeds the bridge's demand-based source connections.
+  # Strict kind allowlist, 3h TTL (kinds 0/10002 exempt — profiles and relay
+  # lists are pointers, not chatter), NIP-40/70 enforced, /demand feeds the
+  # bridge's demand-based source connections. The kind lists mirror the
+  # deployed relays; image defaults exclude 10002 and would silently reject
+  # the host relay lists the bridge publishes.
   ephemeral-relay:
     image: ephemeral-relay:main
     restart: unless-stopped
@@ -41,6 +44,8 @@ services:
       DEMAND_ENDPOINT: "true"
       DEMAND_KINDS: "1311"
       AUTH_TOKEN: ${DEMAND_AUTH_TOKEN:-local-demand-token}
+      ALLOWED_KINDS: "0,5,7,16,1311,1312,1313,9735,10002,10312"
+      RETENTION_EXEMPT_KINDS: "0,10002"
       RELAY_NAME: Livelier chat relay (local)
     volumes:
       - livelier_ephemeral_db:/app/db
@@ -54,6 +59,9 @@ services:
     ports:
       - "7460:3335"
     environment:
+      # Stands in for purplepag.es, which accepts profile-class kinds.
+      ALLOWED_KINDS: "0,5,7,16,1311,1312,1313,9735,10002,10312"
+      RETENTION_EXEMPT_KINDS: "0,10002"
       RELAY_NAME: Dummy network relay (e2e stand-in)
 
   db:

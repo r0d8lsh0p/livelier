@@ -300,6 +300,21 @@ export class DiscoveryBridgeService {
     );
     metrics.publishedProfiles += 1;
     if (!anyRelayAccepted(result)) metrics.relayWriteFailures += 1;
+
+    // The relay list rides the profile's hash gate — no state of its own, so
+    // it shares the kind-0's semantics exactly: a relay-URL config change
+    // republishes only when profile content next changes, and an all-reject
+    // is counted but not retried until then. Same relay set as the kind-0 —
+    // the event relay's whitelist rejects host-signed events, so the pointer
+    // must live where the profile lives.
+    const relayListResult = await this.publisher.publishRelayList(
+      signer,
+      this.config.eventRelayUrl,
+      this.config.chatRelayUrl,
+      this.config.profileWriteRelays
+    );
+    if (!anyRelayAccepted(relayListResult)) metrics.relayWriteFailures += 1;
+
     await this.store.update(row.url, { profile_hash: hash });
   }
 

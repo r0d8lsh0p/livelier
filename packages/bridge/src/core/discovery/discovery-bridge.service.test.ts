@@ -112,6 +112,7 @@ function makeStore(row: InstanceRow, isNew: boolean) {
 function makePublisher() {
   return {
     publishProfile: jest.fn().mockResolvedValue(OK),
+    publishRelayList: jest.fn().mockResolvedValue(OK),
     publishLiveEvent: jest.fn().mockResolvedValue(OK),
   };
 }
@@ -171,6 +172,16 @@ describe('DiscoveryBridgeService.runCycle', () => {
     expect(publisher.publishProfile.mock.calls[0][2]).toEqual([
       'ws://chat-relay:8080',
       'ws://dummy-purple:8080',
+    ]);
+    // The NIP-65 relay list rides along with the kind-0, same relay set:
+    // event relay as the host's write/outbox, chat relay as read/inbox.
+    expect(publisher.publishRelayList).toHaveBeenCalledTimes(1);
+    // Same per-instance derived key signs both halves of the pair.
+    expect(publisher.publishRelayList.mock.calls[0][0]).toBe(publisher.publishProfile.mock.calls[0][0]);
+    expect(publisher.publishRelayList.mock.calls[0].slice(1)).toEqual([
+      'ws://event-relay:8080',
+      'ws://chat-relay:8080',
+      ['ws://chat-relay:8080', 'ws://dummy-purple:8080'],
     ]);
     expect(liveArg.status).toBe('live');
     // Authorship: bridge identity signs; the instance's derived key stays host.
@@ -330,6 +341,7 @@ describe('DiscoveryBridgeService.runCycle', () => {
     expect(store.upsertSeen).toHaveBeenCalledTimes(1); // DB still tracks it
     expect(adapter.checkLiveness).not.toHaveBeenCalled(); // no contact
     expect(publisher.publishProfile).not.toHaveBeenCalled();
+    expect(publisher.publishRelayList).not.toHaveBeenCalled();
     expect(publisher.publishLiveEvent).not.toHaveBeenCalled();
   });
 
