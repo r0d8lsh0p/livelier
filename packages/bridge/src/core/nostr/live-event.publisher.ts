@@ -91,6 +91,28 @@ export class LiveEventPublisher {
   }
 
   /**
+   * Publish an instance host's NIP-65 relay list (kind 10002): the event
+   * relay marked `write` — the 30311s naming this host as `p` are authored
+   * there — and the chat relay marked `read` — the room's 1311s land there.
+   * This is the pointer that lets outbox-model clients (and shosho's
+   * host-relay directory) find a host's streams from the profile alone;
+   * without it a bridged profile is a dead end.
+   */
+  async publishRelayList(
+    signer: DerivedKeySigner,
+    eventRelayUrl: string,
+    chatRelayUrl: string,
+    relayUrls: string[]
+  ): Promise<Record<string, boolean>> {
+    const tags = [
+      ['r', eventRelayUrl, 'write'],
+      ['r', chatRelayUrl, 'read'],
+    ];
+    const event = await nostrClient.createSignedEvent(signer, 10002, '', tags);
+    return nostrClient.publishEvent(event, relayUrls);
+  }
+
+  /**
    * Publish a kind-30311 live event with NIP-53 `relays` + NIP-48 `proxy` tags.
    * Signed by the bridge identity; the instance's derived key stays the `p` host.
    */

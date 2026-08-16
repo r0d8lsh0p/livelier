@@ -108,7 +108,7 @@ packages/
           chat-bridge.service.ts rooms, chatter identities, 3-layer dedup, demand gating
           fingerprint.ts
         nostr/
-          live-event.publisher.ts  kind-0 + kind-30311 via shared clientService
+          live-event.publisher.ts  kind-0/10002 + kind-30311 via shared clientService
           nostr-gateway.ts       the chat service's one seam to the relay
           authed-publish.ts      one-shot NIP-42 publish (NIP-70 policy)
           demand.client.ts       GET /demand reader

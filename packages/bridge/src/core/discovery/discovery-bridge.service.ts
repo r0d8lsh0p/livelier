@@ -300,6 +300,20 @@ export class DiscoveryBridgeService {
     );
     metrics.publishedProfiles += 1;
     if (!anyRelayAccepted(result)) metrics.relayWriteFailures += 1;
+
+    // The relay list rides the profile's hash gate: kind 10002 is replaceable
+    // and its content never varies per instance, so republishing it exactly
+    // when the kind-0 republishes keeps the pair atomic without more state.
+    // Same relay set as the kind-0 — the event relay's whitelist would reject
+    // a host-signed event, so the pointer must live where the profile lives.
+    const relayListResult = await this.publisher.publishRelayList(
+      signer,
+      this.config.eventRelayUrl,
+      this.config.chatRelayUrl,
+      this.config.profileWriteRelays
+    );
+    if (!anyRelayAccepted(relayListResult)) metrics.relayWriteFailures += 1;
+
     await this.store.update(row.url, { profile_hash: hash });
   }
 

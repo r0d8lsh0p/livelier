@@ -66,6 +66,31 @@ describe('LiveEventPublisher.publishLiveEvent', () => {
   });
 });
 
+describe('LiveEventPublisher.publishRelayList', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('publishes a kind-10002 with the event relay as write and the chat relay as read', async () => {
+    const publisher = new LiveEventPublisher();
+    const signer = new DerivedKeySigner('01'.repeat(32));
+    await publisher.publishRelayList(signer, 'wss://event.example', 'wss://chat.example', [
+      'ws://chat-relay:8080',
+      'ws://dummy-purple:8080',
+    ]);
+
+    const [, kind, content, tags] = mocked.createSignedEvent.mock.calls[0];
+    expect(kind).toBe(10002);
+    expect(content).toBe('');
+    expect(tags).toEqual([
+      ['r', 'wss://event.example', 'write'],
+      ['r', 'wss://chat.example', 'read'],
+    ]);
+    expect(mocked.publishEvent).toHaveBeenCalledWith(expect.anything(), [
+      'ws://chat-relay:8080',
+      'ws://dummy-purple:8080',
+    ]);
+  });
+});
+
 describe('LiveEventPublisher retraction primitives (used by operations/retract-instance.mjs)', () => {
   beforeEach(() => jest.clearAllMocks());
 

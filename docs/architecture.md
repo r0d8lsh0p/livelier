@@ -17,7 +17,7 @@ One worker process plus two relays and a Postgres:
 |---|---|---|
 | **Bridge worker** (this package) | Discovery engines + chat services, one pair per enabled source | Stateless apart from Postgres |
 | **Event relay** (SW2) | Durable discovery events: every `30311`, plus the operator-curated bridge `kind:0` | Write whitelist = the bridge identity pubkey ONLY; reads open to everyone |
-| **Chat relay** (ephemeral-relay) | Chat-session events: bridged `1311`s, instance host `kind:0`s, chatter identities | Strict kind allowlist, ~3 h TTL (`kind:0` exempt), NIP-40/70 enforced, NIP-42 AUTH for protected events, `GET /demand` |
+| **Chat relay** (ephemeral-relay) | Chat-session events: bridged `1311`s, instance host `kind:0`s + NIP-65 relay lists, chatter identities | Strict kind allowlist, ~3 h TTL (`kind:0` exempt), NIP-40/70 enforced, NIP-42 AUTH for protected events, `GET /demand` |
 | **Postgres** | Instance state, hourly observation snapshots | A working cache — **the relay is the durable record**; the DB can be rebuilt from a few poll cycles |
 
 Clients discover streams by reading `30311`s from the event relay; the event's
