@@ -162,7 +162,16 @@ async function main() {
   const blank = await publishToAll(profileRelays, blankEvent);
   console.log(`kind-0 blanked:  ${JSON.stringify(blank)}`);
 
-  const accepted = Object.values(retract).some(Boolean) && Object.values(blank).some(Boolean);
+  // The kind-10002 relay list is replaceable too: an empty-tags replacement
+  // removes the retracted instance's pointer everywhere it was published.
+  const blankRelayList = finalizeEvent({ kind: 10002, content: '', tags: [], created_at: now() }, instanceKey);
+  const blankRl = await publishToAll(profileRelays, blankRelayList);
+  console.log(`kind-10002 blanked: ${JSON.stringify(blankRl)}`);
+
+  const accepted =
+    Object.values(retract).some(Boolean) &&
+    Object.values(blank).some(Boolean) &&
+    Object.values(blankRl).some(Boolean);
   if (!accepted) {
     console.error('A relay rejected the retraction — DB markers left in place; re-run.');
     await db.end();

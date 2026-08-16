@@ -176,6 +176,8 @@ describe('DiscoveryBridgeService.runCycle', () => {
     // The NIP-65 relay list rides along with the kind-0, same relay set:
     // event relay as the host's write/outbox, chat relay as read/inbox.
     expect(publisher.publishRelayList).toHaveBeenCalledTimes(1);
+    // Same per-instance derived key signs both halves of the pair.
+    expect(publisher.publishRelayList.mock.calls[0][0]).toBe(publisher.publishProfile.mock.calls[0][0]);
     expect(publisher.publishRelayList.mock.calls[0].slice(1)).toEqual([
       'ws://event-relay:8080',
       'ws://chat-relay:8080',
