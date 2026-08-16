@@ -10,7 +10,7 @@ import type { StreamMeta } from '../../../../shared/src/streaming/stream-meta';
  *
  * Identity is neutral: events are signed by a per-instance derived key, carry a
  * NIP-48 `proxy` tag, and the kind-0 profile is clearly marked as an automated
- * mirror. No platform branding is attached anywhere.
+ * bridge. No platform branding is attached anywhere.
  */
 
 export interface BridgedProfileInput {
@@ -59,11 +59,15 @@ export interface LivePublishInput {
   currentParticipants?: number;
 }
 
-/** Build the kind-0 content for a bridged instance, marked as a mirror. */
+/**
+ * Build the kind-0 content for a bridged instance. The attribution line says
+ * only "Bridged from <source>" — the instance URL already lives in the
+ * `website` field, and "bridged" (never "mirrored") is the product's word.
+ */
 export function buildBridgedProfileContent(input: BridgedProfileInput): string {
   const about = input.description
-    ? `${input.description}\n\nBridged mirror of ${input.website} (${input.sourceName}).`
-    : `Bridged mirror of ${input.website} (${input.sourceName}).`;
+    ? `${input.description}\n\nBridged from ${input.sourceName}.`
+    : `Bridged from ${input.sourceName}.`;
   return JSON.stringify({
     name: input.name,
     display_name: input.name,

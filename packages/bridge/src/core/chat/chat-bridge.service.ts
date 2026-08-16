@@ -298,7 +298,7 @@ export class ChatBridgeService {
     const content = JSON.stringify({
       name: displayName,
       display_name: displayName,
-      about: `Chat participant on ${instanceUrl} (${this.adapter.sourceName}), mirrored by an automated bridge.`,
+      about: `Chat participant on ${instanceUrl} (${this.adapter.sourceName}), bridged by an automated bridge.`,
       bot: true,
     });
     // Profile-class events go to the full profile-write set (chat relay +
