@@ -192,6 +192,8 @@ async function main() {
   // The r-tag URLs are the poller's own EVENT/CHAT_RELAY_URL config, which in
   // compose differ from the host-side URLs this harness dials — so assert the
   // shape (one write pointer, one read pointer), not the exact URLs.
+  // Assumes a fresh DB volume: a pre-feature volume carries profile_hash
+  // values that gate the pair until profile content next changes.
   const hostPubkey = room.tags.find((t) => t[0] === 'p')?.[1];
   const hostRelayLists = await query(CHAT_RELAY_URL, { kinds: [10002], authors: [hostPubkey] });
   const rl = hostRelayLists.sort((a, b) => b.created_at - a.created_at)[0];
@@ -413,8 +415,7 @@ async function main() {
 
     // Retraction also blanks the host's relay list: replaceable 10002 with
     // empty tags overwrites the pointer wherever it was published.
-    const retractedHost = room.tags.find((t) => t[0] === 'p')?.[1];
-    const rlAfter = (await query(CHAT_RELAY_URL, { kinds: [10002], authors: [retractedHost] }))
+    const rlAfter = (await query(CHAT_RELAY_URL, { kinds: [10002], authors: [hostPubkey] }))
       .sort((a, b) => b.created_at - a.created_at)[0];
     if (rlAfter && rlAfter.tags.length === 0) {
       pass('retracted host kind-10002 blanked (empty tags)');
