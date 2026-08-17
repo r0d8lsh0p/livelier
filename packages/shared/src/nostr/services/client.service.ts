@@ -9,7 +9,7 @@ import { recordReqOpened, recordReqClosed } from '../../dev/relay-req-stats';
 import {
   FailedProfileFetch,
   recordFailedProfileFetch,
-} from '../../components/ui/chat/utils/profile-fetch-backoff';
+} from '../utils/profile-fetch-backoff';
 
 // Timeouts in milliseconds
 /**
