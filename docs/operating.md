@@ -40,11 +40,18 @@ Two symmetric booleans per instance row:
   deploy. Requires `discovery_enabled` and the direction gates.
 
 New rows are stamped from `OWNCAST_DEFAULT_DISCOVERY_ENABLED` (default true) /
-`OWNCAST_DEFAULT_CHAT_ENABLED` (default false) inside the INSERT; existing
-rows are never auto-swept to match posture, so explicit settings stick.
+`OWNCAST_DEFAULT_CHAT_ENABLED` (default false) inside the INSERT; the bridge
+never auto-sweeps existing rows to match posture, so explicit settings stick.
 
 Operator scripts live in `operations/` (dry-run default, `--confirm`
 gated): `set-discovery.mjs <url> on|off` and `set-chat.mjs <url> on|off`.
+
+Opening chat fleet-wide is therefore two moves, and the env var alone is not
+enough: set `OWNCAST_DEFAULT_CHAT_ENABLED=true` (new rows, needs a deploy),
+then `set-chat.mjs --all on --confirm` (the rows already there, no deploy).
+Do them in that order so rows discovered mid-rollout are not missed by both.
+The sweep overwrites per-row chat opt-outs, so re-apply any of those after it.
+Undo is symmetric and the DB half takes effect within ~30s.
 
 When a streamer asks to be removed: set both flags off (stops everything
 going forward), and — only if they also want existing events gone — run
