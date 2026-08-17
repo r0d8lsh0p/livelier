@@ -81,18 +81,18 @@ function anchor(href: string, label: string): string {
  * Render a processed-content token stream as Owncast chat HTML.
  *
  * Owncast's server-side sanitizer allows `<a>` with remote hrefs but strips
- * remote `<img>` srcs — only the instance's own emoji paths survive. So:
- * an emoji whose shortcode exists in the instance's emoji set (the
- * `instanceEmoji` map, shortcode → relative path) renders as a real inline
- * `<img>` exactly like a native chat user's; any other emoji falls back to
- * the shortcode linking to its image. Bech32 event refs render as their
- * abridged label linking to njump, mentions as @name linking to the
- * profile. All text and labels are escaped; only http(s) URLs from token
- * metadata become hrefs.
+ * remote `<img>` srcs — only the instance's own emoji paths survive. The
+ * emoji's identity is its URL: when the tagged image URL IS one of this
+ * instance's own emoji assets (`instanceEmojiByUrl`, absolute URL →
+ * relative path — the round-trip case), it renders as a real inline
+ * `<img>`; any other URL keeps the shortcode linking to that exact image.
+ * Bech32 event refs render as their abridged label linking to njump,
+ * mentions as @name linking to the profile. All text and labels are
+ * escaped; only http(s) URLs from token metadata become hrefs.
  */
 export function tokensToOwncastHtml(
   tokens: ContentToken[],
-  instanceEmoji?: Map<string, string>
+  instanceEmojiByUrl?: Map<string, string>
 ): string {
   const body = tokens
     .map((token) => {
@@ -106,15 +106,12 @@ export function tokensToOwncastHtml(
           return escapeText(token.value);
         }
       }
-      if (token.type === 'emoji') {
-        const shortcode = typeof token.metadata?.shortcode === 'string' ? token.metadata.shortcode : '';
-        const local = shortcode ? instanceEmoji?.get(shortcode) : undefined;
+      if (token.type === 'emoji' && isWebUrl(token.metadata?.imageUrl)) {
+        const local = instanceEmojiByUrl?.get(token.metadata.imageUrl);
         if (local) {
           return `<img src="${escapeText(local)}" class="emoji" alt="${escapeText(token.value)}" title="${escapeText(token.value)}"/>`;
         }
-        if (isWebUrl(token.metadata?.imageUrl)) {
-          return anchor(token.metadata.imageUrl, token.value);
-        }
+        return anchor(token.metadata.imageUrl, token.value);
       }
       return escapeText(token.value);
     })

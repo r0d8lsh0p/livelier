@@ -103,22 +103,44 @@ describe('tokensToOwncastHtml', () => {
     expect(html).toBe('<p><a href="https://x/blob.png">:blob-dance:</a></p>');
   });
 
-  it('renders an inline img when the shortcode exists in the instance emoji set', () => {
-    const instanceEmoji = new Map([['blob-dance', '/img/emoji/blob/blob-dance.gif']]);
+  it('renders an inline img when the tagged URL is one of the instance own assets', () => {
+    const instanceEmojiByUrl = new Map([
+      ['http://oc:8080/img/emoji/blob/blob-dance.gif', '/img/emoji/blob/blob-dance.gif'],
+    ]);
     const html = tokensToOwncastHtml(
       [
         { type: 'text', value: 'gm ' },
         {
           type: 'emoji',
           value: ':blob-dance:',
-          metadata: { shortcode: 'blob-dance', imageUrl: 'https://x/blob.png' },
+          metadata: {
+            shortcode: 'blob-dance',
+            imageUrl: 'http://oc:8080/img/emoji/blob/blob-dance.gif',
+          },
         },
       ],
-      instanceEmoji
+      instanceEmojiByUrl
     );
     expect(html).toBe(
       '<p>gm <img src="/img/emoji/blob/blob-dance.gif" class="emoji" alt=":blob-dance:" title=":blob-dance:"/></p>'
     );
+  });
+
+  it('links a foreign emoji URL even when its name matches an instance emoji', () => {
+    const instanceEmojiByUrl = new Map([
+      ['http://oc:8080/img/emoji/blob/blob-dance.gif', '/img/emoji/blob/blob-dance.gif'],
+    ]);
+    const html = tokensToOwncastHtml(
+      [
+        {
+          type: 'emoji',
+          value: ':blob-dance:',
+          metadata: { shortcode: 'blob-dance', imageUrl: 'https://their.site/blob-dance.gif' },
+        },
+      ],
+      instanceEmojiByUrl
+    );
+    expect(html).toBe('<p><a href="https://their.site/blob-dance.gif">:blob-dance:</a></p>');
   });
 
   it('refuses non-web URLs as hrefs and falls back to escaped text', () => {
@@ -143,10 +165,18 @@ describe('tokensToOwncastHtml', () => {
   });
 
   it('escapes hostile instance emoji paths inside the img tag', () => {
-    const instanceEmoji = new Map([['x', '/img/emoji/a.png" onerror="alert(1)']]);
+    const instanceEmojiByUrl = new Map([
+      ['https://oc/img/emoji/a.png', '/img/emoji/a.png" onerror="alert(1)'],
+    ]);
     const html = tokensToOwncastHtml(
-      [{ type: 'emoji', value: ':x:', metadata: { shortcode: 'x' } }],
-      instanceEmoji
+      [
+        {
+          type: 'emoji',
+          value: ':x:',
+          metadata: { shortcode: 'x', imageUrl: 'https://oc/img/emoji/a.png' },
+        },
+      ],
+      instanceEmojiByUrl
     );
     expect(html).toBe(
       '<p><img src="/img/emoji/a.png&quot; onerror=&quot;alert(1)" class="emoji" alt=":x:" title=":x:"/></p>'

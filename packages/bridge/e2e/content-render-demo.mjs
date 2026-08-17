@@ -271,11 +271,13 @@ async function main() {
     },
     {
       id: 'T11',
-      label: 'emoji matching the instance set (inline img)',
-      // The shortcode exists in the local Owncast's own emoji vocabulary, so
-      // the adapter renders a real inline <img> from the instance's asset.
+      label: 'instance-asset emoji URL (inline img round-trip)',
+      // The tagged URL IS the local instance's own emoji asset (the shape a
+      // Nostr reply quoting a bridged emoji carries), so the adapter renders
+      // a real inline <img>. A foreign URL — even with a matching name —
+      // stays a link (T09/T10 prove that path).
       content: 'T11 hi :ablobattention:',
-      tags: [['emoji', 'ablobattention', 'https://example.com/foreign-art.gif']],
+      tags: [['emoji', 'ablobattention', `${INSTANCE_URL}/img/emoji/blob/ablobattention.gif`]],
     },
   ];
 

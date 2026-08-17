@@ -155,10 +155,12 @@ export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
   }
 
   /**
-   * The instance's custom-emoji vocabulary (shortcode → relative image
-   * path), used to render matching NIP-30 emoji as real inline images.
-   * Cached per instance; a fetch failure renders this message's emoji as
-   * links and retries on the next emoji-bearing message.
+   * The instance's own emoji assets, keyed by ABSOLUTE image URL (value =
+   * the relative path Owncast's sanitizer accepts inline). An emoji whose
+   * tagged URL is one of these is a round-trip of this instance's asset and
+   * may render as a real `<img>`. Cached per instance; a fetch failure
+   * renders this message's emoji as links and retries on the next
+   * emoji-bearing message.
    */
   private async getInstanceEmoji(instanceUrl: string): Promise<Map<string, string> | undefined> {
     const cached = this.emojiCache.get(instanceUrl);
@@ -168,10 +170,15 @@ export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
         signal: AbortSignal.timeout(this.config.hlsTimeoutMs),
       });
       if (!res.ok) return cached?.map;
-      const list = (await res.json()) as Array<{ name?: unknown; url?: unknown }>;
+      const list = (await res.json()) as Array<{ url?: unknown }>;
       const map = new Map<string, string>();
       for (const e of list) {
-        if (typeof e.name === 'string' && typeof e.url === 'string') map.set(e.name, e.url);
+        if (typeof e.url !== 'string') continue;
+        try {
+          map.set(new URL(e.url, instanceUrl).href, e.url);
+        } catch {
+          // Unresolvable entry — skip.
+        }
       }
       this.emojiCache.set(instanceUrl, { map, at: Date.now() });
       return map;

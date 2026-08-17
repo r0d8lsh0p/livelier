@@ -222,7 +222,7 @@ describe('OwncastAdapter chat half', () => {
     });
   });
 
-  it('sendMessage inlines emoji matching the instance vocabulary, links the rest', async () => {
+  it('sendMessage inlines an emoji whose URL is the instance own asset, links the rest', async () => {
     const { adapter, pool } = makeChatAdapter();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -232,12 +232,17 @@ describe('OwncastAdapter chat half', () => {
     await adapter.sendMessage('http://oc:8080', 'pk1', 'NostrAlice', 'gm :blob-dance: :foreign:', [
       { type: 'text', value: 'gm ' },
       {
+        // Round-trip of this instance's own asset → inline.
         type: 'emoji',
         value: ':blob-dance:',
-        metadata: { shortcode: 'blob-dance', imageUrl: 'https://their.site/blob.png' },
+        metadata: {
+          shortcode: 'blob-dance',
+          imageUrl: 'http://oc:8080/img/emoji/blob/blob-dance.gif',
+        },
       },
       { type: 'text', value: ' ' },
       {
+        // Foreign image (same-name or not) → the passed URL, as a link.
         type: 'emoji',
         value: ':foreign:',
         metadata: { shortcode: 'foreign', imageUrl: 'https://their.site/foreign.png' },
