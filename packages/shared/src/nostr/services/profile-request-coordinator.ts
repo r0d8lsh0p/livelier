@@ -9,7 +9,7 @@ import {
   PROFILE_RETRY_MAX_ATTEMPTS,
   hasExhaustedProfileRetries,
   recordFailedProfileFetch,
-} from '../../components/ui/chat/utils/profile-fetch-backoff';
+} from '../utils/profile-fetch-backoff';
 
 /**
  * Minimal cache surface required by the partition/apply helpers below.
