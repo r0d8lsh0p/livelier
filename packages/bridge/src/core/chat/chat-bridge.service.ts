@@ -4,7 +4,7 @@ import type { Logger } from 'pino';
 import { DerivedKeySigner } from '../../../../shared/src/nostr/signers/derived-key.signer';
 import { InstanceStore } from '../instance-store';
 import { InstanceRow } from '../types';
-import { renderNostrContentToText } from './content-render';
+import { processNostrContent } from './content-render';
 import { FingerprintCache } from './fingerprint';
 import { NostrGateway } from '../nostr/nostr-gateway';
 import { DemandSource } from '../nostr/demand.client';
@@ -41,6 +41,12 @@ interface Room {
   /** Chatters whose kind-0/10002 were already published this session. */
   profiledChatters: Set<string>;
   fingerprints: FingerprintCache;
+  /**
+   * FIFO delivery chain. Name resolution and content rendering are async
+   * with per-message latency (profile lookups), so unchained deliveries
+   * would reach the source in completion order, not arrival order.
+   */
+  delivery: Promise<void>;
 }
 
 /**
@@ -142,6 +148,7 @@ export class ChatBridgeService {
         chatterSigners: new Map(),
         profiledChatters: new Set(),
         fingerprints: new FingerprintCache(),
+        delivery: Promise.resolve(),
       };
       this.rooms.set(url, room);
       this.log.info({ instance: url, aTag: room.aTag }, 'chat room opening');
@@ -280,6 +287,22 @@ export class ChatBridgeService {
     const room = [...this.rooms.values()].find((r) => r.aTag === aTag);
     if (!room) return;
 
+    // Everything async (name resolution, content rendering, send) joins the
+    // room's FIFO chain so messages reach the source in arrival order. Each
+    // link swallows its own failure — one failed delivery logs and drops,
+    // and must neither sever the chain nor skip the messages behind it.
+    room.delivery = room.delivery.then(() =>
+      this.deliverToSource(room, event).catch((err: unknown) => {
+        this.log.warn(
+          { instance: room.row.url, err: err instanceof Error ? err.message : String(err) },
+          'nostr→source delivery failed'
+        );
+      })
+    );
+    await room.delivery;
+  }
+
+  private async deliverToSource(room: Room, event: Event): Promise<void> {
     const displayName = await this.resolveName(event.pubkey);
 
     // L3 fingerprint — keyed on RAW content: rendering depends on async
@@ -289,8 +312,8 @@ export class ChatBridgeService {
     if (room.fingerprints.has(fp)) return;
     room.fingerprints.add(fp);
 
-    const text = await renderNostrContentToText(event);
-    await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, text);
+    const { text, tokens } = await processNostrContent(event);
+    await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, text, tokens);
     this.log.info({ instance: room.row.url, from: displayName }, 'nostr→source chat bridged');
   }
 

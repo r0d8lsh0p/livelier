@@ -6,7 +6,8 @@ import { checkOwncastHlsLiveness } from './discovery/liveness';
 import { DirectoryInstance } from './discovery/types';
 import { OwncastChatListener, OwncastChatJoin, OwncastChatMessage } from './chat/owncast-listener';
 import { OwncastChatPool } from './chat/chat-pool';
-import { owncastHtmlToText, textToOwncastHtml } from './chat/html';
+import { owncastHtmlToText, textToOwncastHtml, tokensToOwncastHtml } from './chat/html';
+import type { ContentToken } from '../../../../shared/src/utils/content-processor';
 
 export interface OwncastAdapterConfig {
   /** Owncast directory feed (`/api/home`). */
@@ -140,9 +141,11 @@ export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
     instanceUrl: string,
     senderKey: string,
     displayName: string,
-    text: string
+    text: string,
+    tokens?: ContentToken[] | null
   ): Promise<void> {
-    await this.pool.send(instanceUrl, senderKey, displayName, textToOwncastHtml(text));
+    const html = tokens?.length ? tokensToOwncastHtml(tokens) : textToOwncastHtml(text);
+    await this.pool.send(instanceUrl, senderKey, displayName, html);
   }
 
   closeRoom(instanceUrl: string): void {

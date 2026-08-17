@@ -4,8 +4,19 @@ import {
   processMessageForDisplay,
 } from '../../../../shared/src/utils/content-processor';
 
+export interface RenderedContent {
+  /** Plain-text serialization — the fallback every adapter can deliver. */
+  text: string;
+  /**
+   * The processed token stream, for adapters that can render richer
+   * output (links, emoji). Null when the pipeline failed and `text`
+   * carries the raw, unprocessed content.
+   */
+  tokens: ContentToken[] | null;
+}
+
 /**
- * Serialize processed-content tokens to plain text for a source chat.
+ * Serialize processed-content tokens to plain text.
  *
  * Plain text cannot carry an href, so tokens whose display value is an
  * abridged label (note/nevent/naddr → njump) render as their link target —
@@ -26,18 +37,21 @@ export function renderTokensToText(tokens: ContentToken[]): string {
 /**
  * Run a chat event's content through the shared content pipeline (the same
  * per-kind dispatch Nostr clients use: mentions → names, bech32 refs →
- * links, custom emoji) and flatten the result to source-chat plain text.
+ * links, custom emoji) and return both the token stream and its plain-text
+ * form.
  *
  * Delivery must never fail on processing: any pipeline error falls back to
- * the raw content, which is what the bridge historically delivered.
+ * the raw content with a null token stream, which is what the bridge
+ * historically delivered.
  */
-export async function renderNostrContentToText(event: Event): Promise<string> {
+export async function processNostrContent(event: Event): Promise<RenderedContent> {
   try {
     const processed = await processMessageForDisplay(event);
     const tokens = processed.tokens ?? [{ type: 'text', value: processed.text }];
     const text = renderTokensToText(tokens);
-    return text.trim() ? text : event.content;
+    if (!text.trim()) return { text: event.content, tokens: null };
+    return { text, tokens };
   } catch {
-    return event.content;
+    return { text: event.content, tokens: null };
   }
 }

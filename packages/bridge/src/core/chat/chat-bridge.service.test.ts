@@ -273,7 +273,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'NostrAlice',
-      'hi <all>' // conversion to the source wire format is the adapter's job
+      'hi <all>', // conversion to the source wire format is the adapter's job
+      [{ type: 'text', value: 'hi <all>' }]
     );
     svc.stop();
   });
@@ -290,7 +291,50 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'NostrAlice',
-      'hi @alice'
+      'hi @alice',
+      expect.arrayContaining([expect.objectContaining({ type: 'mention', value: '@alice' })])
+    );
+    svc.stop();
+  });
+
+  it('N→S: delivers in arrival order even when an earlier render resolves slower', async () => {
+    const deps = makeDeps([room()]);
+    // First event carries a mention whose profile lookup is slow; second is
+    // plain text that renders instantly. FIFO must hold arrival order.
+    (profileService.getProfile as jest.Mock).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ name: 'slowpoke' }), 50))
+    );
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    const npub = nip19.npubEncode('2'.repeat(64));
+    const first = svc.handleNostrEvent(
+      nostrEvent({ id: 'f'.repeat(64), content: `question for nostr:${npub}` })
+    );
+    const second = svc.handleNostrEvent(nostrEvent({ content: 'the answer' }));
+    await Promise.all([first, second]);
+
+    const delivered = deps.adapter.sendMessage.mock.calls.map((c: unknown[]) => c[3]);
+    expect(delivered).toEqual(['question for @slowpoke', 'the answer']);
+    svc.stop();
+  });
+
+  it('N→S: a failed delivery drops that message but not the ones behind it', async () => {
+    const deps = makeDeps([room()]);
+    deps.adapter.sendMessage
+      .mockRejectedValueOnce(new Error('owncast ws down'))
+      .mockResolvedValue(undefined);
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    await svc.handleNostrEvent(nostrEvent({ id: 'f'.repeat(64), content: 'lost' }));
+    await svc.handleNostrEvent(nostrEvent({ content: 'delivered' }));
+
+    const delivered = deps.adapter.sendMessage.mock.calls.map((c: unknown[]) => c[3]);
+    expect(delivered).toEqual(['lost', 'delivered']);
+    expect(noopLog.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: 'owncast ws down' }),
+      'nostr→source delivery failed'
     );
     svc.stop();
   });
@@ -306,7 +350,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'Guest',
-      'first'
+      'first',
+      [{ type: 'text', value: 'first' }]
     );
 
     // Profile published between messages: the next message re-queries and
@@ -317,7 +362,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'Quiet Owl',
-      'second'
+      'second',
+      [{ type: 'text', value: 'second' }]
     );
     expect(deps.gateway.fetchProfileName).toHaveBeenCalledTimes(2);
     svc.stop();
@@ -423,7 +469,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'NostrAlice',
-      'from-the-wider-network'
+      'from-the-wider-network',
+      [{ type: 'text', value: 'from-the-wider-network' }]
     );
 
     // Non-1311 chat kinds ride along but are not delivered as chat text.

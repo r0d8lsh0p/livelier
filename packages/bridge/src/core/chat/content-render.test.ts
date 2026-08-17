@@ -2,7 +2,7 @@ import { nip19 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 import profileService from '../../../../shared/src/nostr/services/profile.service';
 import { abridgeBech32Id } from '../../../../shared/src/utils/nostr-key-utils';
-import { renderNostrContentToText, renderTokensToText } from './content-render';
+import { processNostrContent, renderTokensToText } from './content-render';
 
 jest.mock('../../../../shared/src/nostr/services/profile.service', () => ({
   __esModule: true,
@@ -35,55 +35,79 @@ beforeEach(() => {
   getProfile.mockReset().mockResolvedValue(null);
 });
 
-describe('renderNostrContentToText', () => {
+describe('processNostrContent', () => {
   it('leaves plain text untouched', async () => {
-    expect(await renderNostrContentToText(event('hello world'))).toBe('hello world');
+    const { text, tokens } = await processNostrContent(event('hello world'));
+    expect(text).toBe('hello world');
+    expect(tokens).toEqual([{ type: 'text', value: 'hello world' }]);
   });
 
   it('renders an npub mention as @name when the profile resolves', async () => {
     getProfile.mockResolvedValue({ name: 'alice' });
-    expect(await renderNostrContentToText(event(`hi nostr:${NPUB}`))).toBe('hi @alice');
+    const { text, tokens } = await processNostrContent(event(`hi nostr:${NPUB}`));
+    expect(text).toBe('hi @alice');
+    expect(tokens).toContainEqual(
+      expect.objectContaining({ type: 'mention', value: '@alice' })
+    );
   });
 
   it('renders an nprofile mention as @name when the profile resolves', async () => {
     getProfile.mockResolvedValue({ name: 'bob' });
-    expect(await renderNostrContentToText(event(`hi ${NPROFILE}`))).toBe('hi @bob');
+    const { text } = await processNostrContent(event(`hi ${NPROFILE}`));
+    expect(text).toBe('hi @bob');
   });
 
   it('falls back to the abridged bech32 when the profile is unknown', async () => {
-    const text = await renderNostrContentToText(event(`hi ${NPUB}`));
+    const { text } = await processNostrContent(event(`hi ${NPUB}`));
     expect(text).toBe(`hi ${abridgeBech32Id(NPUB)}`);
   });
 
   it('renders note/nevent/naddr refs as their njump link targets', async () => {
     for (const ref of [NOTE, NEVENT, NADDR]) {
-      const text = await renderNostrContentToText(event(`see nostr:${ref}`));
+      const { text, tokens } = await processNostrContent(event(`see nostr:${ref}`));
       expect(text).toBe(`see https://njump.me/${ref}`);
+      expect(tokens).toContainEqual(
+        expect.objectContaining({
+          type: 'url',
+          value: abridgeBech32Id(ref),
+          metadata: expect.objectContaining({ url: `https://njump.me/${ref}` }),
+        })
+      );
     }
   });
 
   it('keeps plain URLs verbatim', async () => {
     const url = 'https://example.com/watch?v=1';
-    expect(await renderNostrContentToText(event(`look ${url} now`))).toBe(`look ${url} now`);
+    const { text } = await processNostrContent(event(`look ${url} now`));
+    expect(text).toBe(`look ${url} now`);
   });
 
-  it('keeps custom emoji shortcodes as text', async () => {
-    const text = await renderNostrContentToText(
+  it('keeps custom emoji shortcodes as text and carries the image in the token', async () => {
+    const { text, tokens } = await processNostrContent(
       event('gm :blob-dance:', { tags: [['emoji', 'blob-dance', 'https://x/blob.png']] })
     );
     expect(text).toBe('gm :blob-dance:');
+    expect(tokens).toContainEqual(
+      expect.objectContaining({
+        type: 'emoji',
+        metadata: expect.objectContaining({ imageUrl: 'https://x/blob.png' }),
+      })
+    );
   });
 
-  it('delivers raw content when the pipeline throws', async () => {
-    getProfile.mockRejectedValue(new Error('relay down'));
+  it('delivers raw content with null tokens when the pipeline throws', async () => {
     // The npub processor catches lookup errors itself; force a pipeline-level
     // failure instead via malformed input to the trim call.
     const bad = { ...event('x'), content: undefined as unknown as string };
-    expect(await renderNostrContentToText(bad)).toBe(bad.content);
+    const { text, tokens } = await processNostrContent(bad);
+    expect(text).toBe(bad.content);
+    expect(tokens).toBeNull();
   });
 
   it('delivers raw content when processing yields only whitespace', async () => {
-    expect(await renderNostrContentToText(event('   '))).toBe('   ');
+    const { text, tokens } = await processNostrContent(event('   '));
+    expect(text).toBe('   ');
+    expect(tokens).toBeNull();
   });
 });
 
