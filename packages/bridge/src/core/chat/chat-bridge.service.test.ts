@@ -5,11 +5,21 @@
  * filtering, wire-format conversion) are adapter concerns, tested there.
  */
 import type { Logger } from 'pino';
+import { nip19 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 import { ChatBridgeService, ChatServiceConfig } from './chat-bridge.service';
 import { DerivedKeySigner } from '../../../../shared/src/nostr/signers/derived-key.signer';
 import { deriveBridgeIdentityKey } from '../../../../shared/src/nostr/bridge-key';
+import profileService from '../../../../shared/src/nostr/services/profile.service';
 import { InstanceRow } from '../types';
+
+// The content pipeline resolves embedded mentions through the shared profile
+// service (a separate path from the gateway's sender-name lookup); stub it so
+// the suite stays hermetic.
+jest.mock('../../../../shared/src/nostr/services/profile.service', () => ({
+  __esModule: true,
+  default: { getProfile: jest.fn().mockResolvedValue(null) },
+}));
 
 const config: ChatServiceConfig = {
   bridgeName: 'Livelier',
@@ -264,6 +274,23 @@ describe('ChatBridgeService', () => {
       'b'.repeat(64),
       'NostrAlice',
       'hi <all>' // conversion to the source wire format is the adapter's job
+    );
+    svc.stop();
+  });
+
+  it('N→S: runs content through the shared pipeline (mention → @name)', async () => {
+    const deps = makeDeps([room()]);
+    (profileService.getProfile as jest.Mock).mockResolvedValue({ name: 'alice' });
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    const npub = nip19.npubEncode('1'.repeat(64));
+    await svc.handleNostrEvent(nostrEvent({ content: `hi nostr:${npub}` }));
+    expect(deps.adapter.sendMessage).toHaveBeenCalledWith(
+      'http://owncast-test:8080',
+      'b'.repeat(64),
+      'NostrAlice',
+      'hi @alice'
     );
     svc.stop();
   });

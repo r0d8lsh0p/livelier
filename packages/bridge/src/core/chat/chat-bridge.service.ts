@@ -4,6 +4,7 @@ import type { Logger } from 'pino';
 import { DerivedKeySigner } from '../../../../shared/src/nostr/signers/derived-key.signer';
 import { InstanceStore } from '../instance-store';
 import { InstanceRow } from '../types';
+import { renderNostrContentToText } from './content-render';
 import { FingerprintCache } from './fingerprint';
 import { NostrGateway } from '../nostr/nostr-gateway';
 import { DemandSource } from '../nostr/demand.client';
@@ -281,12 +282,15 @@ export class ChatBridgeService {
 
     const displayName = await this.resolveName(event.pubkey);
 
-    // L3 fingerprint.
+    // L3 fingerprint — keyed on RAW content: rendering depends on async
+    // name resolution, and a name that resolves differently on a repeat
+    // delivery would defeat dedup.
     const fp = FingerprintCache.key(displayName, event.content);
     if (room.fingerprints.has(fp)) return;
     room.fingerprints.add(fp);
 
-    await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, event.content);
+    const text = await renderNostrContentToText(event);
+    await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, text);
     this.log.info({ instance: room.row.url, from: displayName }, 'nostr→source chat bridged');
   }
 
