@@ -6,7 +6,7 @@ import { escapeAttr, escapeHtml, safeHref } from '../ui/escape';
  *
  * Each card links to the streamer's own server, not to a player Livelier hosts —
  * which is the whole promise of the bridge restated as a hyperlink: discovery
- * happens on the network, viewing happens on your machine.
+ * happens on the directory, viewing happens on your machine.
  */
 export function renderLiveGrid(
   container: HTMLElement,

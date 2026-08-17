@@ -2,7 +2,7 @@
  * Bridge configuration, resolved from environment.
  *
  * Global (core) settings share the bridge identity, relays, and DB across all
- * source networks; each source gets its own prefixed block (OWNCAST_*) so
+ * sources; each source gets its own prefixed block (OWNCAST_*) so
  * sources — and their discovery vs chat halves — enable independently.
  *
  * The only relays any publish path may reach are the ones configured here.
@@ -12,7 +12,7 @@
 
 import { NETWORK_CHAT_READ_RELAYS, NETWORK_PROFILE_WRITE_RELAYS } from './core/relays';
 
-/** Settings shared by every source network. */
+/** Settings shared by every source. */
 export interface CoreConfig {
   /**
    * Public-facing bridge name ("Livelier", livelier.live); used as the

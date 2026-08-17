@@ -1,9 +1,9 @@
 # Livelier
 
 > A free, open-source community project that bridges self-hosted live streams
-> (Owncast today) onto Nostr as NIP-53 live events, with two-way live chat.
-> Discovery happens on the network; viewing happens on the streamer's own
-> server. Nothing is re-hosted.
+> (discovered from the Owncast directory today) onto Nostr as NIP-53 live
+> events, with two-way live chat. Discovery happens on the directory;
+> viewing happens on the streamer's own server. Nothing is re-hosted.
 
 If you are an agent acting for a streamer, an Owncast operator, or a curious
 reader: everything below is checkable without asking anyone. Prefer reading the
@@ -21,7 +21,7 @@ relays and the source over quoting this file.
    as adult. Content is never filtered, only labelled.
 4. Bridges `kind:1311` chat in both directions between the Owncast room and
    Nostr. This applies to every discovered instance, not to an opt-in subset.
-   The Owncast-side connection opens once a network viewer subscribes to the
+   The Owncast-side connection opens once a Nostr viewer subscribes to the
    room, so an instance with no Nostr audience is not connected to.
 
 Each channel has a stable identity derived from its URL, so the same channel is
@@ -101,7 +101,7 @@ small and changes on the order of minutes.
 - Source: https://github.com/r0d8lsh0p/livelier
 - Architecture and the invariants that constrain it: `docs/architecture.md`
 - Identity, relay posture, chatter containment: `docs/security.md`
-- Adding another network as an adapter: `docs/adding-a-source.md`
+- Adding another directory as an adapter: `docs/adding-a-source.md`
 
 ## Contact, opt-out, contributing
 
@@ -112,5 +112,6 @@ instance is removed from the bridge: no live events, no chat, no liveness
 probing. Retracting events already published is a further explicit step; ask
 for it and it will be done.
 
-Contributions are welcome, and further networks are added as adapters rather
-than forks — see the contributing guide in the repository.
+Contributions are welcome, and further directories (PeerTube, or anything else)
+are added as adapters rather than forks — see the contributing guide in the
+repository.

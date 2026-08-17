@@ -1,10 +1,10 @@
-# Adding a source network
+# Adding a source directory
 
-A new bridged network (PeerTube, Streamplace, …) touches exactly three places
-— **never `core/` and never another adapter**:
+A new bridged directory (PeerTube, or anything else) should touch exactly three
+places — **never `core/` and never another adapter**:
 
 1. `packages/bridge/src/sources/<key>/adapter.ts` — implement `DiscoveryAdapter`, and
-   `ChatAdapter` if the network has chat
+   `ChatAdapter` if the source has chat
 2. `packages/bridge/src/config.ts` — a `<KEY>_*` env block
 3. `packages/bridge/src/index.ts` — one block in the composition root
 
@@ -26,7 +26,7 @@ Rules:
 
 - **`sourceKey` is identity-bearing and permanent.** It namespaces every
   derived instance key and scopes every DB row. Changing it later re-keys the
-  network's whole fleet and orphans its published events.
+  source's whole fleet and orphans its published events.
 - **`dTagPrefix` must keep the full d-tag under 30 characters** (prefix + `-`
   + 16 hex = prefix ≤ 13, but keep it 2–3 chars). Longer coordinates silently
   break `#a` queries on nostrlib-based relays.
@@ -40,7 +40,7 @@ fetchLive(): Promise<DiscoveryResult>;
 checkLiveness(streamUrl: string): Promise<Liveness>;
 ```
 
-- `fetchLive()` returns the network's current live set, normalized to
+- `fetchLive()` returns the directory's current live set, normalized to
   `DiscoveredLive` (canonical URL as the identity key, playable stream URL,
   kind-0 picture, 30311 preview image, `startsAt` unix seconds or null,
   hashtag slugs). Include the raw source objects verbatim in `result.raw` —
@@ -48,15 +48,15 @@ checkLiveness(streamUrl: string): Promise<Liveness>;
   so the engine logs upstream schema drift.
 - **Throw on source outage.** The engine keeps last-known state on a throw;
   returning an empty live set instead would start tearing streams down.
-- **Push-style sources still implement `fetchLive()`.** A firehose adapter
-  (e.g. ATProto Jetstream) consumes its subscription into an in-memory
-  live-set and answers instantly. There is deliberately ONE lifecycle engine;
-  do not build a second push-shaped one.
+- **Push-style sources still implement `fetchLive()`.** An adapter fed by a
+  firehose subscription rather than a poll consumes that subscription into an
+  in-memory live-set and answers instantly. There is deliberately ONE
+  lifecycle engine; do not build a second push-shaped one.
 - `checkLiveness(streamUrl)` is ground truth, probing the stream itself — the
-  live feed is only discovery. Learn from Owncast's probe: after a stream
+  directory feed is only discovery. Learn from Owncast's probe: after a stream
   ends Owncast keeps serving playlists of offline-slate segments, so the
   generic "playlist exists" heuristic reads ended streams as live. Find your
-  network's equivalent lie and handle it.
+  source's equivalent lie and handle it.
 - Do not filter NSFW; set the flag and the engine labels it (NIP-36).
 
 The engine owns everything else: hash-gated kind-0 publishing, heartbeat
@@ -72,7 +72,7 @@ closeRoom(instanceUrl): void;
 closeAll(): void;
 ```
 
-- The core speaks **plain text only**. Convert your network's wire format
+- The core speaks **plain text only**. Convert your source's wire format
   (HTML, XMPP stanzas, records) at this boundary, both directions.
 - `openListener` must emit only genuine third-party messages: filter out your
   own sender identities (echo) and empty bodies before calling `onMessage`.
@@ -89,7 +89,7 @@ I/O. An adapter never talks to a relay.
 
 Mirror `OwncastSourceConfig`: `<KEY>_ENABLED` (default true),
 `<KEY>_DISCOVERY_ENABLED`, cadence/timeout knobs with the same defaults unless
-the network warrants otherwise, and independent chat gates
+the source warrants otherwise, and independent chat gates
 `<KEY>_CHAT_TO_NOSTR` / `<KEY>_CHAT_FROM_NOSTR` (default false).
 
 ## 3. The composition root
@@ -102,14 +102,14 @@ posture) is shared; only the source block differs.
 ## Database
 
 Nothing to do — rows and snapshots are automatically scoped by your
-`sourceKey`. If your network genuinely needs new columns, append a migration
+`sourceKey`. If your source genuinely needs new columns, append a migration
 in `packages/bridge/src/core/migrations.ts` (append-only; never edit a shipped one).
 
 ## Testing expectations
 
 - Unit-test the adapter like `sources/owncast/adapter.test.ts`: the
   normalization mapping, liveness classification against captured fixtures,
-  and (for chat) echo filtering + format conversion. Mock your network's
+  and (for chat) echo filtering + format conversion. Mock your source's
   clients; the engine and chat service are already covered against the
   adapter interfaces.
 - **No test may touch a real relay or a real third-party instance.** The

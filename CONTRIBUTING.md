@@ -1,24 +1,15 @@
 # Contributing to Livelier
 
-Livelier bridges live streams from external networks (Owncast first) onto
-Nostr as NIP-53 live events, with optional two-way live chat. Contributions
-are welcome — the most valuable kind is a new source adapter (see
-[docs/adding-a-source.md](docs/adding-a-source.md)).
+Livelier discovers self-hosted live streams from public directories (Owncast
+directory first) and publishes them to the Nostr network as NIP-53 live events,
+with optional two-way live chat. Contributions are welcome — the most valuable
+kind is an adapter for a new directory, PeerTube or anything else
+(see [docs/adding-a-source.md](docs/adding-a-source.md)).
 
 ## Before you touch anything
 
 Read [docs/architecture.md](docs/architecture.md), especially the
-**invariants** section. They are load-bearing and test-enforced; PRs that
-violate one will be declined regardless of how clean the code is. The two
-that surprise people:
-
-- **Write containment.** Every publish names its target relays explicitly.
-  `publishEvent` throws without a relay list, and
-  `packages/bridge/src/core/nostr/client.boundary.test.ts` fences the APIs that could
-  bypass that. Reads are unconstrained; writes never are.
-- **The flag stops the machine, nothing more.** `discovery_enabled=false`
-  stops probes and publishes but never deletes rows or retracts events —
-  removal is a separate manual operator action.
+**invariants** section. They are load-bearing and test-enforced.
 
 ## Development setup
 

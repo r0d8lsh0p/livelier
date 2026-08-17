@@ -20,7 +20,7 @@ export interface BridgedProfileInput {
   picture: string;
   /** The instance origin. */
   website: string;
-  /** Human name of the source network, e.g. "Owncast". */
+  /** Human name of the source, e.g. "Owncast". */
   sourceName: string;
 }
 
