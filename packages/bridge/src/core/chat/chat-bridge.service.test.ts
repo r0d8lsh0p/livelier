@@ -5,11 +5,21 @@
  * filtering, wire-format conversion) are adapter concerns, tested there.
  */
 import type { Logger } from 'pino';
+import { nip19 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 import { ChatBridgeService, ChatServiceConfig } from './chat-bridge.service';
 import { DerivedKeySigner } from '../../../../shared/src/nostr/signers/derived-key.signer';
 import { deriveBridgeIdentityKey } from '../../../../shared/src/nostr/bridge-key';
+import profileService from '../../../../shared/src/nostr/services/profile.service';
 import { InstanceRow } from '../types';
+
+// The content pipeline resolves embedded mentions through the shared profile
+// service (a separate path from the gateway's sender-name lookup); stub it so
+// the suite stays hermetic.
+jest.mock('../../../../shared/src/nostr/services/profile.service', () => ({
+  __esModule: true,
+  default: { getProfile: jest.fn().mockResolvedValue(null) },
+}));
 
 const config: ChatServiceConfig = {
   bridgeName: 'Livelier',
@@ -188,6 +198,30 @@ describe('ChatBridgeService', () => {
     svc.stop();
   });
 
+  it('S→N: carries the source message custom emoji as NIP-30 tags', async () => {
+    const deps = makeDeps([room()]);
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    await svc.handleSourceChat(roomOf(svc, 'http://owncast-test:8080'), {
+      userId: 'oc-user-1',
+      displayName: 'OwncastBob',
+      text: ':neocat_cry_256:',
+      emojis: [
+        { shortcode: 'neocat_cry_256', imageUrl: 'http://owncast-test:8080/img/emoji/neocat_cry_256.png' },
+      ],
+    });
+
+    const [chatCall] = deps.gateway.publish.mock.calls;
+    expect(chatCall[1]).toBe(1311);
+    expect(chatCall[3]).toContainEqual([
+      'emoji',
+      'neocat_cry_256',
+      'http://owncast-test:8080/img/emoji/neocat_cry_256.png',
+    ]);
+    svc.stop();
+  });
+
   it('S→N dedup: drops empty text and repeated content (L3)', async () => {
     const deps = makeDeps([room()]);
     const svc = makeService(deps);
@@ -263,7 +297,90 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'NostrAlice',
-      'hi <all>' // conversion to the source wire format is the adapter's job
+      'hi <all>', // conversion to the source wire format is the adapter's job
+      [{ type: 'text', value: 'hi <all>' }]
+    );
+    svc.stop();
+  });
+
+  it('N→S: runs content through the shared pipeline (mention → @name)', async () => {
+    const deps = makeDeps([room()]);
+    (profileService.getProfile as jest.Mock).mockResolvedValue({ name: 'alice' });
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    const npub = nip19.npubEncode('1'.repeat(64));
+    await svc.handleNostrEvent(nostrEvent({ content: `hi nostr:${npub}` }));
+    expect(deps.adapter.sendMessage).toHaveBeenCalledWith(
+      'http://owncast-test:8080',
+      'b'.repeat(64),
+      'NostrAlice',
+      'hi @alice',
+      expect.arrayContaining([expect.objectContaining({ type: 'mention', value: '@alice' })])
+    );
+    svc.stop();
+  });
+
+  it('N→S: delivers in arrival order even when an earlier render resolves slower', async () => {
+    const deps = makeDeps([room()]);
+    // First event carries a mention whose profile lookup is slow; second is
+    // plain text that renders instantly. FIFO must hold arrival order.
+    (profileService.getProfile as jest.Mock).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve({ name: 'slowpoke' }), 50))
+    );
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    const npub = nip19.npubEncode('2'.repeat(64));
+    const first = svc.handleNostrEvent(
+      nostrEvent({ id: 'f'.repeat(64), content: `question for nostr:${npub}` })
+    );
+    const second = svc.handleNostrEvent(nostrEvent({ content: 'the answer' }));
+    await Promise.all([first, second]);
+
+    const delivered = deps.adapter.sendMessage.mock.calls.map((c: unknown[]) => c[3]);
+    expect(delivered).toEqual(['question for @slowpoke', 'the answer']);
+    svc.stop();
+  });
+
+  it('N→S: a delivery still in flight when its room closes is dropped, not sent', async () => {
+    const deps = makeDeps([room()]);
+    // Slow name resolution keeps the delivery in flight across the teardown.
+    let releaseName = () => {};
+    deps.gateway.fetchProfileName.mockImplementation(
+      () => new Promise((resolve) => { releaseName = () => resolve('LateAlice'); })
+    );
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    const pending = svc.handleNostrEvent(nostrEvent({ content: 'too late' }));
+    // Room leaves the allowlist while the delivery awaits the name.
+    deps.store.listChatRooms.mockResolvedValue([]);
+    await svc.refreshRooms();
+    releaseName();
+    await pending;
+
+    // Sending now would reopen a source connection the bridge just closed.
+    expect(deps.adapter.sendMessage).not.toHaveBeenCalled();
+    svc.stop();
+  });
+
+  it('N→S: a failed delivery drops that message but not the ones behind it', async () => {
+    const deps = makeDeps([room()]);
+    deps.adapter.sendMessage
+      .mockRejectedValueOnce(new Error('owncast ws down'))
+      .mockResolvedValue(undefined);
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    await svc.handleNostrEvent(nostrEvent({ id: 'f'.repeat(64), content: 'lost' }));
+    await svc.handleNostrEvent(nostrEvent({ content: 'delivered' }));
+
+    const delivered = deps.adapter.sendMessage.mock.calls.map((c: unknown[]) => c[3]);
+    expect(delivered).toEqual(['lost', 'delivered']);
+    expect(noopLog.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ err: 'owncast ws down' }),
+      'nostr→source delivery failed'
     );
     svc.stop();
   });
@@ -279,7 +396,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'Guest',
-      'first'
+      'first',
+      [{ type: 'text', value: 'first' }]
     );
 
     // Profile published between messages: the next message re-queries and
@@ -290,7 +408,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'Quiet Owl',
-      'second'
+      'second',
+      [{ type: 'text', value: 'second' }]
     );
     expect(deps.gateway.fetchProfileName).toHaveBeenCalledTimes(2);
     svc.stop();
@@ -396,7 +515,8 @@ describe('ChatBridgeService', () => {
       'http://owncast-test:8080',
       'b'.repeat(64),
       'NostrAlice',
-      'from-the-wider-network'
+      'from-the-wider-network',
+      [{ type: 'text', value: 'from-the-wider-network' }]
     );
 
     // Non-1311 chat kinds ride along but are not delivered as chat text.

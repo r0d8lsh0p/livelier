@@ -4,6 +4,7 @@ import type { Logger } from 'pino';
 import { DerivedKeySigner } from '../../../../shared/src/nostr/signers/derived-key.signer';
 import { InstanceStore } from '../instance-store';
 import { InstanceRow } from '../types';
+import { processNostrContent } from './content-render';
 import { FingerprintCache } from './fingerprint';
 import { NostrGateway } from '../nostr/nostr-gateway';
 import { DemandSource } from '../nostr/demand.client';
@@ -40,6 +41,12 @@ interface Room {
   /** Chatters whose kind-0/10002 were already published this session. */
   profiledChatters: Set<string>;
   fingerprints: FingerprintCache;
+  /**
+   * FIFO delivery chain. Name resolution and content rendering are async
+   * with per-message latency (profile lookups), so unchained deliveries
+   * would reach the source in completion order, not arrival order.
+   */
+  delivery: Promise<void>;
 }
 
 /**
@@ -141,6 +148,7 @@ export class ChatBridgeService {
         chatterSigners: new Map(),
         profiledChatters: new Set(),
         fingerprints: new FingerprintCache(),
+        delivery: Promise.resolve(),
       };
       this.rooms.set(url, room);
       this.log.info({ instance: url, aTag: room.aTag }, 'chat room opening');
@@ -227,11 +235,15 @@ export class ChatBridgeService {
     // relay) and a NIP-40 expiration — bridged chatters never opted into
     // Nostr, so their mirrored messages must not outlive the relay's TTL.
     const expiration = Math.floor(Date.now() / 1000) + this.config.chatExpirationSeconds;
-    await this.gateway.publish(signer, 1311, msg.text, [
+    const tags = [
       ['a', room.aTag, this.config.chatRelayUrl, 'root'],
       ['-'],
       ['expiration', String(expiration)],
-    ]);
+      // NIP-30: the message's custom emoji, so clients render the images
+      // where the text carries the :shortcode:.
+      ...(msg.emojis ?? []).map((e) => ['emoji', e.shortcode, e.imageUrl]),
+    ];
+    await this.gateway.publish(signer, 1311, msg.text, tags);
     this.log.info(
       { instance: room.row.url, from: msg.displayName },
       'source→nostr chat bridged'
@@ -279,14 +291,36 @@ export class ChatBridgeService {
     const room = [...this.rooms.values()].find((r) => r.aTag === aTag);
     if (!room) return;
 
+    // Everything async (name resolution, content rendering, send) joins the
+    // room's FIFO chain so messages reach the source in arrival order. Each
+    // link swallows its own failure — one failed delivery logs and drops,
+    // and must neither sever the chain nor skip the messages behind it.
+    room.delivery = room.delivery.then(() =>
+      this.deliverToSource(room, event).catch((err: unknown) => {
+        this.log.warn(
+          { instance: room.row.url, err: err instanceof Error ? err.message : String(err) },
+          'nostr→source delivery failed'
+        );
+      })
+    );
+    await room.delivery;
+  }
+
+  private async deliverToSource(room: Room, event: Event): Promise<void> {
     const displayName = await this.resolveName(event.pubkey);
 
-    // L3 fingerprint.
+    // L3 fingerprint — keyed on RAW content: rendering depends on async
+    // name resolution, and a name that resolves differently on a repeat
+    // delivery would defeat dedup.
     const fp = FingerprintCache.key(displayName, event.content);
     if (room.fingerprints.has(fp)) return;
     room.fingerprints.add(fp);
 
-    await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, event.content);
+    const { text, tokens } = await processNostrContent(event);
+    // The room may have been torn down while name/render resolved — a send
+    // now would reopen a source connection the bridge just closed.
+    if (this.rooms.get(room.row.url) !== room) return;
+    await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, text, tokens);
     this.log.info({ instance: room.row.url, from: displayName }, 'nostr→source chat bridged');
   }
 

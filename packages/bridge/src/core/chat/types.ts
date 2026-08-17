@@ -4,6 +4,15 @@
  * conversion, connection pooling, its own echo filtering — and speaks plain
  * text to the core.
  */
+import type { ContentToken } from '../../../../shared/src/utils/content-processor';
+
+/** A custom emoji used in a source chat message (NIP-30 on the Nostr side). */
+export interface SourceEmoji {
+  /** Shortcode without the enclosing colons. */
+  shortcode: string;
+  /** Absolute image URL, resolvable off the source instance's origin. */
+  imageUrl: string;
+}
 
 /** A third-party chat message from the source platform, normalized. */
 export interface SourceChatMessage {
@@ -12,6 +21,9 @@ export interface SourceChatMessage {
   displayName: string;
   /** Plain text — the adapter converts from the source's wire format. */
   text: string;
+  /** Custom emoji the message used, so the bridged event can carry NIP-30
+   * emoji tags and Nostr clients can render the images. */
+  emojis?: SourceEmoji[];
 }
 
 /** A third-party user joining the source chat room. Sources typically
@@ -43,13 +55,17 @@ export interface ChatAdapter {
   /**
    * Deliver a Nostr chat message into the source room, attributed to
    * displayName. senderKey is a stable per-sender handle (the Nostr pubkey)
-   * so the adapter can keep one source-side identity per sender.
+   * so the adapter can keep one source-side identity per sender. `tokens`
+   * is the processed-content token stream when available — adapters whose
+   * platform supports richer output (links, emoji) may render from it;
+   * `text` is the plain serialization every adapter can fall back to.
    */
   sendMessage(
     instanceUrl: string,
     senderKey: string,
     displayName: string,
-    text: string
+    text: string,
+    tokens?: ContentToken[] | null
   ): Promise<void>;
   /** Tear down all source-side connections for a room. */
   closeRoom(instanceUrl: string): void;
