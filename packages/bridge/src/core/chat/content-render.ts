@@ -41,8 +41,8 @@ export function renderTokensToText(tokens: ContentToken[]): string {
  * form.
  *
  * Delivery must never fail on processing: any pipeline error falls back to
- * the raw content with a null token stream, which is what the bridge
- * historically delivered.
+ * the raw content with a null token stream, which adapters deliver as
+ * plain escaped text.
  */
 export async function processNostrContent(event: Event): Promise<RenderedContent> {
   try {

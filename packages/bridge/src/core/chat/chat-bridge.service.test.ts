@@ -343,6 +343,28 @@ describe('ChatBridgeService', () => {
     svc.stop();
   });
 
+  it('N→S: a delivery still in flight when its room closes is dropped, not sent', async () => {
+    const deps = makeDeps([room()]);
+    // Slow name resolution keeps the delivery in flight across the teardown.
+    let releaseName = () => {};
+    deps.gateway.fetchProfileName.mockImplementation(
+      () => new Promise((resolve) => { releaseName = () => resolve('LateAlice'); })
+    );
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    const pending = svc.handleNostrEvent(nostrEvent({ content: 'too late' }));
+    // Room leaves the allowlist while the delivery awaits the name.
+    deps.store.listChatRooms.mockResolvedValue([]);
+    await svc.refreshRooms();
+    releaseName();
+    await pending;
+
+    // Sending now would reopen a source connection the bridge just closed.
+    expect(deps.adapter.sendMessage).not.toHaveBeenCalled();
+    svc.stop();
+  });
+
   it('N→S: a failed delivery drops that message but not the ones behind it', async () => {
     const deps = makeDeps([room()]);
     deps.adapter.sendMessage

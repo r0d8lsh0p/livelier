@@ -351,7 +351,7 @@ async function main() {
   const lines = [
     '# Content-render demo — Nostr 1311 → Owncast chat',
     '',
-    `Stack: local compose (worktree feat/content-processor-port). Room \`${aTag}\`.`,
+    `Stack: local compose. Room \`${aTag}\`.`,
     `Owncast chat UI: ${OWNCAST_URL} (messages left in place for review).`,
     '',
     '| # | Case | Nostr content (input) | Owncast body (output) | Delivered |',

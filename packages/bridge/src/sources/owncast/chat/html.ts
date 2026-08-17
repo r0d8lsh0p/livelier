@@ -38,8 +38,8 @@ export function owncastHtmlToText(html: string): string {
 export function extractOwncastEmojis(html: string, instanceUrl: string): SourceEmoji[] {
   const seen = new Map<string, string>();
   for (const img of html.match(/<img\b[^>]*>/gi) ?? []) {
-    const alt = img.match(/alt="([^"]*)"/i)?.[1] ?? '';
-    const src = img.match(/src="([^"]*)"/i)?.[1] ?? '';
+    const alt = img.match(/\salt="([^"]*)"/i)?.[1] ?? '';
+    const src = img.match(/\ssrc="([^"]*)"/i)?.[1] ?? '';
     const shortcode = alt.match(/^:([a-zA-Z0-9_-]+):$/)?.[1];
     if (!shortcode || !src || seen.has(shortcode)) continue;
     try {
@@ -68,9 +68,9 @@ export function textToOwncastHtml(text: string): string {
   return `<p>${escapeText(text)}</p>`;
 }
 
-/** Only web URLs may become hrefs — anything else renders as text. */
+/** Only whitespace-free web URLs may become hrefs — anything else renders as text. */
 function isWebUrl(url: unknown): url is string {
-  return typeof url === 'string' && /^https?:\/\//i.test(url);
+  return typeof url === 'string' && /^https?:\/\/\S+$/i.test(url);
 }
 
 function anchor(href: string, label: string): string {

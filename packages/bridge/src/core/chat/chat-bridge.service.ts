@@ -317,6 +317,9 @@ export class ChatBridgeService {
     room.fingerprints.add(fp);
 
     const { text, tokens } = await processNostrContent(event);
+    // The room may have been torn down while name/render resolved — a send
+    // now would reopen a source connection the bridge just closed.
+    if (this.rooms.get(room.row.url) !== room) return;
     await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, text, tokens);
     this.log.info({ instance: room.row.url, from: displayName }, 'nostr→source chat bridged');
   }
