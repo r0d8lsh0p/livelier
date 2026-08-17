@@ -21,7 +21,7 @@ describe('instanceSigner', () => {
     const a = instanceSigner('https://live.example', 'secret', 'owncast');
     const b = instanceSigner('https://live.example', 'secret', 'owncast');
     expect(a.getPublicKey()).toBe(b.getPublicKey());
-    // A different source network yields a different identity for the same URL.
+    // A different source yields a different identity for the same URL.
     const other = instanceSigner('https://live.example', 'secret', 'peertube');
     expect(other.getPublicKey()).not.toBe(a.getPublicKey());
   });

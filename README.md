@@ -1,43 +1,37 @@
 <div align="center">
 
-<img src="packages/site/brand/assets/Logotext.png" alt="Livelier.live" width="380">
+<img src="packages/site/brand/assets/Logotext-transparent.png" alt="Livelier.live" width="380">
 
-**For *livelier* live streams.**
+A **free, open-source community project** that helps self-hosted live streamers
+get found the moment they go live – **For *livelier* live streams.** [Visit website](https://livelier.live).
 
-A free, open-source community project that helps self-hosted live streamers
-get found the moment they go live.
 
-[![CI](https://github.com/r0d8lsh0p/livelier/actions/workflows/ci.yml/badge.svg)](https://github.com/r0d8lsh0p/livelier/actions/workflows/ci.yml)
 [![Website](https://img.shields.io/badge/livelier.live-visit-FF006E)](https://livelier.live)
 [![License: MIT](https://img.shields.io/badge/license-MIT-FFBE0B)](LICENSE)
 [![Nostr NIP-53](https://img.shields.io/badge/Nostr-NIP--53-8338EC)](https://github.com/nostr-protocol/nips/blob/master/53.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3A86FF)](packages/bridge/tsconfig.json)
-
+[![CI](https://github.com/r0d8lsh0p/livelier/actions/workflows/ci.yml/badge.svg)](https://github.com/r0d8lsh0p/livelier/actions/workflows/ci.yml)
 </div>
 
 ---
 
 Livelier bridges self-hosted live streams onto [Nostr](https://nostr.com) as
-NIP-53 live events, with two-way live chat. Discovery happens on the network;
-viewing happens on the streamer's own server. Nothing is re-hosted, nothing is
-uploaded.
+NIP-53 live events, with two-way live chat. Discovery happens on the directory; viewing happens on the streamer's own server. Nothing is re-hosted,
+nothing is uploaded. Chat messages are bridged temporarily and not persisted.
 
-Owncast is the first bridged network. The architecture is multi-source, so
-further networks are adapters, not forks.
+[Owncast directory](https://owncast.directory) is the first bridged directory of self-hosted live streams. The architecture is multi-source, so further directories (PeerTube, or anything else) are adapters, not forks.
 
 ## What the bridge actually does
 
-1. **Watches public directories** of self-hosted streams (today: the
-   [Owncast directory](https://owncast.directory)) for instances that are live.
-2. **Verifies liveness itself** by fetching the instance's HLS playlist — the
-   directory is discovery, not ground truth.
+1. **Watches public directories** of self-hosted streams for instances that are live.
+2. **Verifies liveness itself** by fetching the instance's HLS playlist.
 3. **Publishes one NIP-53 `kind:30311` live event per live channel** to its own
-   discovery relay, carrying the stream's title, artwork, and a player URL
+   relay, carrying the stream's title, artwork, and a player URL
    pointing back at the streamer's own server. A NIP-48 `proxy` tag names the
    source; a NIP-36 `content-warning` tag is added when the instance
    self-declares as adult. Content is never filtered, only labelled.
 4. **Bridges `kind:1311` chat in both directions** between the source chat room
-   and Nostr. The source-side connection opens only once a network viewer
+   and Nostr. The source-side connection opens only once a Nostr viewer
    subscribes to the room, so an instance with no Nostr audience is not
    connected to.
 
@@ -59,33 +53,43 @@ its own NIP-11 document — read those rather than trusting this file:
 curl -H 'Accept: application/nostr+json' https://livechat.livelier.live
 ```
 
+## How to use Livelier in a Nostr client
+
+Add `wss://livestream.livelier.live` to your relay list, optionally follow the [Livelier Bridge npub](nostr:npub1lvlrur3maj7rhyxmsgf8p5800k3d3n5xm38u8azt89mms2mske8s0u3hm7).
+
+The Nostr client should do the rest:
+
+1. **Discover** 30311 events from the livestream bridge,
+2. **Subscribe** to new chat messages from that livestream, which opens the livechat bridge,
+3. **Send** your chat messages to the live chat bridge.
+
 ## The promises
 
 Every commitment [livelier.live](https://livelier.live) makes to streamers is
-enforced in this code, by mechanism rather than policy:
+enforced in this code:
 
 - **Content passes through unchanged.** Nothing is edited, filtered, or gated.
 - **Overhead is very light.** One playlist check a minute; a chat connection
   opens only while someone is watching.
 - **Bridged chat does not persist.** Chat lives on one dedicated relay, is
-  marked do-not-share (NIP-70), and is hard-deleted on a timer.
+  marked do-not-share (NIP-70), expires (NIP-40), and is hard-deleted on a timer.
 - **The bridge has its own identity.** It joins chats under its own name and
   forces no brand on the streamer or their viewers.
-- **Bridged accounts are marked as mirrors.** Everything published is labelled
+- **Bridged accounts are marked as bridged.** Everything published is labelled
   as a bridge and links back to the streamer's server as the source.
 
 ## The relay invariant
 
-Every publish path writes **exclusively** to the configured event/chat relay pair:
+Every publish path writes livestreams and chat messages **exclusively** to the configured event/chat relay pair:
 `publisher` methods always pass their target relay explicitly to
 `clientService.publishEvent`, and a publish that names no relays **throws** —
 there is no default-relay fallback anywhere, by mechanism rather than policy.
 
 ## Layout (multi-source adapter architecture)
 
-Source-agnostic machinery lives in `core/`; each bridged network is an adapter
+Source-agnostic machinery lives in `core/`; each bridged directory is an adapter
 under `sources/` implementing the `DiscoveryAdapter` and (optionally)
-`ChatAdapter` seams. Adding a network touches `sources/<key>/`, `config.ts`,
+`ChatAdapter` seams. Adding a source touches `sources/<key>/`, `config.ts`,
 and the composition root in `index.ts` — never `core/` or other adapters.
 
 ```
@@ -226,7 +230,7 @@ cd packages/site && npm run typecheck    # website
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup, test contract, PR expectations
 - [docs/architecture.md](docs/architecture.md) — topology, event/chat model, and the **invariants** (read before changing anything)
-- [docs/adding-a-source.md](docs/adding-a-source.md) — how to contribute a new bridged network
+- [docs/adding-a-source.md](docs/adding-a-source.md) — how to contribute a new bridged directory
 - [docs/security.md](docs/security.md) — identity root, relay posture, chatter containment
 - [docs/operating.md](docs/operating.md) — operator guide (partial — runbooks TODO)
 - [SECURITY.md](SECURITY.md) — reporting vulnerabilities
@@ -236,8 +240,7 @@ cd packages/site && npm run typecheck    # website
 An instance appears on the bridge because it is listed in a public directory.
 Any streamer can [open an issue](https://github.com/r0d8lsh0p/livelier/issues/new)
 naming their server to be removed from the bridge — no live events, no chat,
-no liveness probing. Retracting already-published events is a further explicit
-step; ask and it will be done.
+no liveness probing.
 
 ## License
 

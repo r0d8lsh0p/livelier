@@ -2,7 +2,7 @@
   "name": "livelier",
   "version": "0.1.0",
   "private": true,
-  "description": "Livelier — bridges live streams from external networks (Owncast first) onto Nostr as NIP-53 live events, with optional two-way live chat.",
+  "description": "Livelier — discovers self-hosted live streams from public directories (Owncast directory first) and publishes them to the Nostr network as NIP-53 live events, with optional two-way live chat.",
   "workspaces": [
     "packages/bridge"
   ],

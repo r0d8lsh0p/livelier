@@ -31,9 +31,9 @@ interface RunningService {
 }
 
 /**
- * Composition root. One block per enabled source network: build its adapter,
+ * Composition root. One block per enabled source: build its adapter,
  * then start its discovery engine and (if gated on) its chat service. Adding
- * a network means adding an adapter + a block here — core stays untouched.
+ * a source means adding an adapter + a block here — core stays untouched.
  */
 async function main(): Promise<void> {
   const { core, owncast } = loadConfig();

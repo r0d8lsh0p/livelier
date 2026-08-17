@@ -9,7 +9,7 @@ import { runMigrations } from './migrations';
  * is pending, so operators never run a separate migration step.
  */
 export interface LiveSnapshotInput {
-  /** Source network key the snapshot belongs to. */
+  /** Source key the snapshot belongs to. */
   source: string;
   /** Raw directory objects of the live set at capture time. */
   raw: unknown[];
@@ -25,7 +25,7 @@ export interface LiveSnapshotInput {
 
 export interface UpsertSeenInput {
   url: string;
-  /** Source network key ('owncast', …). */
+  /** Source key ('owncast', …). */
   source: string;
   pubkey: string;
   d_tag: string;
@@ -121,7 +121,7 @@ export class InstanceStore {
     return result.rows;
   }
 
-  /** Manually-added instances (local test fleets) for one source network. */
+  /** Manually-added instances (local test fleets) for one source. */
   async listManual(source: string): Promise<InstanceRow[]> {
     const result = await this.pool.query<InstanceRow>(
       "SELECT * FROM bridge_instances WHERE source = $1 AND origin = 'manual'",

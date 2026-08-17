@@ -13,7 +13,7 @@ import type { ProxyProtocol } from '../../../../shared/src/nostr/live-event-tags
 
 export type Liveness = 'live' | 'ended' | 'error';
 
-/** A live stream discovered on the source network, normalized. */
+/** A live stream discovered on the source directory, normalized. */
 export interface DiscoveredLive {
   /** Canonical instance/channel URL — the identity key. */
   url: string;

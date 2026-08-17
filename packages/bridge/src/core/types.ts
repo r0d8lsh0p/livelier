@@ -1,7 +1,7 @@
-/** A persisted bridge instance row (any source network). */
+/** A persisted bridge instance row (any source). */
 export interface InstanceRow {
   url: string;
-  /** Source network key ('owncast', …). */
+  /** Source key ('owncast', …). */
   source: string;
   /** Provenance: 'discovered' from the source's live feed, or 'manual'. */
   origin: string;

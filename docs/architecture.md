@@ -1,13 +1,15 @@
 # Livelier bridge — architecture and invariants
 
-Livelier bridges external live-streaming networks into Nostr: each live stream
-on a bridged network becomes a NIP-53 live event (`kind:30311`) discoverable in
-Shosho, Zap.Stream, Amethyst, Primal, and any other NIP-53 client, with
-optional two-way live chat (`kind:1311`) between the source platform and Nostr.
+Livelier publishes self-hosted live streams to the Nostr network: each live
+stream discovered on a bridged directory becomes a NIP-53 live event
+(`kind:30311`) discoverable in Zap.Stream, Shosho, Primal, Amethyst, Nostrudel,
+and any other NIP-53 client, with optional two-way live chat (`kind:1311`)
+between the source platform and Nostr.
 
-Owncast is the first bridged network. The package is built as a multi-source
-adapter architecture so further networks (PeerTube, Streamplace, …) are added
-as adapters, not forks — see [adding-a-source.md](adding-a-source.md).
+Owncast directory is the first bridged directory. The package is built as a
+multi-source adapter architecture so further directories (PeerTube, or anything
+else) are added as adapters, not forks — see
+[adding-a-source.md](adding-a-source.md).
 
 ## Topology
 
@@ -39,9 +41,9 @@ NIP-53 `relays` hint points them at the chat relay for the room.
 - **Lifecycle**: publish on first sight and on any status change; heartbeat
   republish every 15 min while live; after 3 consecutive liveness failures a
   terminal `status:ended` event publishes. Source liveness probes (e.g. the
-  slate-aware Owncast HLS check) are ground truth; the source's own live feed
-  is only discovery. `starts` is preserved across republishes and reset only
-  on an ended→live transition.
+  slate-aware Owncast HLS check) are ground truth; the directory's own live
+  feed is only discovery. `starts` is preserved across republishes and reset
+  only on an ended→live transition.
 
 ## Chat model
 
@@ -83,7 +85,7 @@ Everything derives from one secret (see [security.md](security.md)):
 
 - Instance keys: `HMAC-SHA256(BRIDGE_KEY_SECRET, "<sourceKey>:" + normalizedUrl)`
   — deterministic, so the same channel is the same npub across restarts and
-  rebuilds; namespaced per source so two networks can never collide.
+  rebuilds; namespaced per source so two sources can never collide.
 - The bridge operator identity comes from `BRIDGE_NSEC` when set, else is
   derived from the same secret under a namespace no URL can occupy.
 - Chatter keys are the exception: random per session, by design.
@@ -119,7 +121,7 @@ Postgres schema is managed by versioned boot-time migrations
 (`packages/bridge/src/core/migrations.ts`): ordered embedded steps, tracked in
 `schema_migrations`, serialized by an advisory lock. Operators never run a
 migration command. The `bridge_instances` table is keyed by URL and scoped by
-`source` (network key) with `origin` provenance (`discovered`/`manual`);
+`source` (source key) with `origin` provenance (`discovered`/`manual`);
 `live_snapshots` holds hourly raw observations for reporting.
 
 ## Invariants — do not break these

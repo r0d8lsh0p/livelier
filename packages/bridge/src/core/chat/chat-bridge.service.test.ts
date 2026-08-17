@@ -177,7 +177,7 @@ describe('ChatBridgeService', () => {
       'ws://relay:8080',
       'root',
     ]);
-    // Chatter profile copy carries the source network's name.
+    // Chatter profile copy carries the source's name.
     const profileCall = deps.gateway.broadcast.mock.calls[0];
     expect(profileCall[2]).toContain('(Owncast)');
     // NIP-40: expires chatExpirationSeconds from now (within test tolerance).
