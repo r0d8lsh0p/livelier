@@ -198,6 +198,30 @@ describe('ChatBridgeService', () => {
     svc.stop();
   });
 
+  it('S→N: carries the source message custom emoji as NIP-30 tags', async () => {
+    const deps = makeDeps([room()]);
+    const svc = makeService(deps);
+    await svc.refreshRooms();
+
+    await svc.handleSourceChat(roomOf(svc, 'http://owncast-test:8080'), {
+      userId: 'oc-user-1',
+      displayName: 'OwncastBob',
+      text: ':neocat_cry_256:',
+      emojis: [
+        { shortcode: 'neocat_cry_256', imageUrl: 'http://owncast-test:8080/img/emoji/neocat_cry_256.png' },
+      ],
+    });
+
+    const [chatCall] = deps.gateway.publish.mock.calls;
+    expect(chatCall[1]).toBe(1311);
+    expect(chatCall[3]).toContainEqual([
+      'emoji',
+      'neocat_cry_256',
+      'http://owncast-test:8080/img/emoji/neocat_cry_256.png',
+    ]);
+    svc.stop();
+  });
+
   it('S→N dedup: drops empty text and repeated content (L3)', async () => {
     const deps = makeDeps([room()]);
     const svc = makeService(deps);

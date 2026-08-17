@@ -6,6 +6,14 @@
  */
 import type { ContentToken } from '../../../../shared/src/utils/content-processor';
 
+/** A custom emoji used in a source chat message (NIP-30 on the Nostr side). */
+export interface SourceEmoji {
+  /** Shortcode without the enclosing colons. */
+  shortcode: string;
+  /** Absolute image URL, resolvable off the source instance's origin. */
+  imageUrl: string;
+}
+
 /** A third-party chat message from the source platform, normalized. */
 export interface SourceChatMessage {
   /** Stable per-user id on the source platform (chatter identity key). */
@@ -13,6 +21,9 @@ export interface SourceChatMessage {
   displayName: string;
   /** Plain text — the adapter converts from the source's wire format. */
   text: string;
+  /** Custom emoji the message used, so the bridged event can carry NIP-30
+   * emoji tags and Nostr clients can render the images. */
+  emojis?: SourceEmoji[];
 }
 
 /** A third-party user joining the source chat room. Sources typically

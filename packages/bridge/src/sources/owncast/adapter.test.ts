@@ -195,7 +195,63 @@ describe('OwncastAdapter chat half', () => {
       userId: 'u1',
       displayName: 'Bob',
       text: 'hello & hi',
+      emojis: [],
     });
+  });
+
+  it('extracts message emoji with instance-absolute URLs for NIP-30 tagging', async () => {
+    const { adapter } = makeChatAdapter();
+    const onMessage = jest.fn();
+    const listener = (await adapter.openListener('http://oc:8080', onMessage)) as never as {
+      emit: (ev: string, msg: unknown) => void;
+    };
+
+    listener.emit('chat', {
+      userId: 'u1',
+      displayName: 'Bob',
+      body: '<p><img src="/img/emoji/neocat_cry_256.png" class="emoji" alt=":neocat_cry_256:"></p>',
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      userId: 'u1',
+      displayName: 'Bob',
+      text: ':neocat_cry_256:',
+      emojis: [
+        { shortcode: 'neocat_cry_256', imageUrl: 'http://oc:8080/img/emoji/neocat_cry_256.png' },
+      ],
+    });
+  });
+
+  it('sendMessage inlines emoji matching the instance vocabulary, links the rest', async () => {
+    const { adapter, pool } = makeChatAdapter();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ name: 'blob-dance', url: '/img/emoji/blob/blob-dance.gif' }],
+    }) as never;
+
+    await adapter.sendMessage('http://oc:8080', 'pk1', 'NostrAlice', 'gm :blob-dance: :foreign:', [
+      { type: 'text', value: 'gm ' },
+      {
+        type: 'emoji',
+        value: ':blob-dance:',
+        metadata: { shortcode: 'blob-dance', imageUrl: 'https://their.site/blob.png' },
+      },
+      { type: 'text', value: ' ' },
+      {
+        type: 'emoji',
+        value: ':foreign:',
+        metadata: { shortcode: 'foreign', imageUrl: 'https://their.site/foreign.png' },
+      },
+    ]);
+
+    expect(global.fetch).toHaveBeenCalledWith('http://oc:8080/api/emoji', expect.anything());
+    expect(pool.send).toHaveBeenCalledWith(
+      'http://oc:8080',
+      'pk1',
+      'NostrAlice',
+      '<p>gm <img src="/img/emoji/blob/blob-dance.gif" class="emoji" alt=":blob-dance:" title=":blob-dance:"/> <a href="https://their.site/foreign.png">:foreign:</a></p>'
+    );
+    (global.fetch as jest.Mock).mockRestore?.();
   });
 
   it('sendMessage escapes text to Owncast HTML and routes through the pool', async () => {

@@ -235,11 +235,15 @@ export class ChatBridgeService {
     // relay) and a NIP-40 expiration — bridged chatters never opted into
     // Nostr, so their mirrored messages must not outlive the relay's TTL.
     const expiration = Math.floor(Date.now() / 1000) + this.config.chatExpirationSeconds;
-    await this.gateway.publish(signer, 1311, msg.text, [
+    const tags = [
       ['a', room.aTag, this.config.chatRelayUrl, 'root'],
       ['-'],
       ['expiration', String(expiration)],
-    ]);
+      // NIP-30: the message's custom emoji, so clients render the images
+      // where the text carries the :shortcode:.
+      ...(msg.emojis ?? []).map((e) => ['emoji', e.shortcode, e.imageUrl]),
+    ];
+    await this.gateway.publish(signer, 1311, msg.text, tags);
     this.log.info(
       { instance: room.row.url, from: msg.displayName },
       'source→nostr chat bridged'

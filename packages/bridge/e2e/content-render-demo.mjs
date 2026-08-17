@@ -269,6 +269,14 @@ async function main() {
       content: `T10 hi nostr:${knownNpub} — see https://livelier.live and nostr:${noteRef} :blob-dance:`,
       tags: [emojiTag],
     },
+    {
+      id: 'T11',
+      label: 'emoji matching the instance set (inline img)',
+      // The shortcode exists in the local Owncast's own emoji vocabulary, so
+      // the adapter renders a real inline <img> from the instance's asset.
+      content: 'T11 hi :ablobattention:',
+      tags: [['emoji', 'ablobattention', 'https://example.com/foreign-art.gif']],
+    },
   ];
 
   console.log(`Publishing ${cases.length} viewer 1311s…`);
@@ -290,6 +298,41 @@ async function main() {
   // Profile resolution for mentions can take a few seconds per unique pubkey.
   console.log('Waiting 30s for bridge delivery…');
   await sleep(30000);
+
+  // ---- S→N: an Owncast emoji message must bridge with a NIP-30 tag ---------
+  console.log('S→N: posting an instance-emoji message into Owncast chat…');
+  const ocReg = await fetch(`${OWNCAST_URL}/api/chat/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName: 'Emoji Fan' }),
+  }).then((r) => r.json());
+  const ocWs = new WebSocket(`${OWNCAST_URL.replace(/^http/, 'ws')}/ws?accessToken=${ocReg.accessToken}`);
+  await new Promise((res, rej) => {
+    ocWs.on('open', res);
+    ocWs.on('error', rej);
+  });
+  ocWs.send(
+    JSON.stringify({
+      type: 'CHAT',
+      body: 'S2N emoji test <img src="/img/emoji/blob/ablobattention.gif" class="emoji" alt=":ablobattention:">',
+    })
+  );
+  await sleep(500);
+  ocWs.close();
+
+  let bridged1311 = null;
+  for (let i = 0; i < 12 && !bridged1311; i++) {
+    await sleep(5000);
+    const events = await query(CHAT_RELAY_URL, { kinds: [1311], '#a': [aTag], limit: 100 });
+    bridged1311 = events.find((e) => e.content.includes('S2N emoji test')) ?? null;
+  }
+  const s2nEmojiTag = bridged1311?.tags.find((t) => t[0] === 'emoji') ?? null;
+  if (bridged1311) {
+    console.log(`S→N bridged 1311 content: ${JSON.stringify(bridged1311.content)}`);
+    console.log(`S→N NIP-30 emoji tag: ${JSON.stringify(s2nEmojiTag)}`);
+  } else {
+    console.log('S→N: bridged 1311 did not appear on the chat relay.');
+  }
 
   // ---- Read back what Owncast shows ----------------------------------------
   const messages = await owncastAdminMessages();
@@ -321,6 +364,16 @@ async function main() {
       ? `Known-profile mention target: ${known.expectedName}`
       : 'NOTE: public relays unreachable during the run — mention cases show the abridged fallback.',
     '',
+    '## S→N: Owncast emoji → NIP-30 tagged 1311',
+    '',
+    bridged1311
+      ? [
+          `Owncast input: instance emoji \`:ablobattention:\` (img, relative src)`,
+          `Bridged 1311 content: \`${bridged1311.content}\``,
+          `NIP-30 emoji tag: \`${JSON.stringify(s2nEmojiTag)}\``,
+        ].join('\n')
+      : '❌ bridged 1311 did not appear on the chat relay.',
+    '',
   ];
   writeFileSync(REPORT_PATH, lines.join('\n'));
 
@@ -334,7 +387,7 @@ async function main() {
   console.log(`View in Owncast: ${OWNCAST_URL} (chat panel)`);
 
   viewerSub.close();
-  const failed = rows.filter((r) => !r.delivered).length;
+  const failed = rows.filter((r) => !r.delivered).length + (bridged1311 && s2nEmojiTag ? 0 : 1);
   process.exit(failed === 0 ? 0 : 1);
 }
 

@@ -6,8 +6,10 @@ import { checkOwncastHlsLiveness } from './discovery/liveness';
 import { DirectoryInstance } from './discovery/types';
 import { OwncastChatListener, OwncastChatJoin, OwncastChatMessage } from './chat/owncast-listener';
 import { OwncastChatPool } from './chat/chat-pool';
-import { owncastHtmlToText, textToOwncastHtml, tokensToOwncastHtml } from './chat/html';
+import { extractOwncastEmojis, owncastHtmlToText, textToOwncastHtml, tokensToOwncastHtml } from './chat/html';
 import type { ContentToken } from '../../../../shared/src/utils/content-processor';
+
+const EMOJI_CACHE_TTL_MS = 10 * 60 * 1000;
 
 export interface OwncastAdapterConfig {
   /** Owncast directory feed (`/api/home`). */
@@ -76,6 +78,7 @@ export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
   readonly proxyProtocol = 'web';
 
   private readonly pool: OwncastChatPool;
+  private readonly emojiCache = new Map<string, { map: Map<string, string>; at: number }>();
 
   constructor(private readonly config: OwncastAdapterConfig) {
     this.pool = new OwncastChatPool(config.log);
@@ -124,7 +127,8 @@ export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
       if (this.pool.getOwncastUserIds(instanceUrl).has(msg.userId)) return;
       const text = owncastHtmlToText(msg.body);
       if (!text) return;
-      onMessage({ userId: msg.userId, displayName: msg.displayName, text });
+      const emojis = extractOwncastEmojis(msg.body, instanceUrl);
+      onMessage({ userId: msg.userId, displayName: msg.displayName, text, emojis });
     });
     if (onJoin) {
       listener.on('join', (join: OwncastChatJoin) => {
@@ -144,8 +148,36 @@ export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
     text: string,
     tokens?: ContentToken[] | null
   ): Promise<void> {
-    const html = tokens?.length ? tokensToOwncastHtml(tokens) : textToOwncastHtml(text);
+    const hasEmoji = tokens?.some((t) => t.type === 'emoji') ?? false;
+    const instanceEmoji = hasEmoji ? await this.getInstanceEmoji(instanceUrl) : undefined;
+    const html = tokens?.length ? tokensToOwncastHtml(tokens, instanceEmoji) : textToOwncastHtml(text);
     await this.pool.send(instanceUrl, senderKey, displayName, html);
+  }
+
+  /**
+   * The instance's custom-emoji vocabulary (shortcode → relative image
+   * path), used to render matching NIP-30 emoji as real inline images.
+   * Cached per instance; a fetch failure renders this message's emoji as
+   * links and retries on the next emoji-bearing message.
+   */
+  private async getInstanceEmoji(instanceUrl: string): Promise<Map<string, string> | undefined> {
+    const cached = this.emojiCache.get(instanceUrl);
+    if (cached && Date.now() - cached.at < EMOJI_CACHE_TTL_MS) return cached.map;
+    try {
+      const res = await fetch(`${instanceUrl}/api/emoji`, {
+        signal: AbortSignal.timeout(this.config.hlsTimeoutMs),
+      });
+      if (!res.ok) return cached?.map;
+      const list = (await res.json()) as Array<{ name?: unknown; url?: unknown }>;
+      const map = new Map<string, string>();
+      for (const e of list) {
+        if (typeof e.name === 'string' && typeof e.url === 'string') map.set(e.name, e.url);
+      }
+      this.emojiCache.set(instanceUrl, { map, at: Date.now() });
+      return map;
+    } catch {
+      return cached?.map;
+    }
   }
 
   closeRoom(instanceUrl: string): void {
