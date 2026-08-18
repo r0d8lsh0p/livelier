@@ -27,11 +27,15 @@ import { OwncastChatListener } from './owncast-listener';
 
 const noopLog = { info: jest.fn(), warn: jest.fn(), error: jest.fn() } as unknown as Logger;
 
+const { MAX_CONSECUTIVE_FAILURES, DORMANT_INTERVAL_MS, MIN_HEALTHY_CONNECTION_MS } =
+  OwncastChatListener;
+
 /**
- * The two guards that separate "flaky, keep trying" from "no chat here": the
- * `chatDisabled` pre-check and the consecutive-failure ceiling. Both matter
- * because rooms are established-only — before these, nothing stopped a
- * listener short of the stream itself ending.
+ * The reachability guards: the `chatDisabled` pre-check and the failure budget
+ * that drops a hopeless instance to a slow re-probe. Rooms are
+ * established-only and live as long as the stream, so the load-bearing property
+ * is that neither guard is terminal — a listener that gave up for good would
+ * turn a brief network fault into chat being dead for the rest of a broadcast.
  */
 describe('OwncastChatListener reachability guards', () => {
   const REGISTERED = { id: 'self', accessToken: 'tok', displayName: 'Livelier' };
@@ -52,10 +56,17 @@ describe('OwncastChatListener reachability guards', () => {
   const registerCalls = (f: jest.Mock): number =>
     f.mock.calls.filter(([url]) => String(url).endsWith('/api/chat/register')).length;
 
-  /** Refuse the newest dial and let the backoff run out. */
+  const latest = (): FakeSocket => fakeSockets[fakeSockets.length - 1];
+
+  /** Refuse the newest dial and let the fast backoff run out. */
   async function refuseLatestDial(): Promise<void> {
-    fakeSockets[fakeSockets.length - 1].emit('close');
+    latest().emit('close');
     await jest.advanceTimersByTimeAsync(5 * 60_000);
+  }
+
+  /** Spend the whole fast-retry budget, leaving the listener dormant. */
+  async function exhaustBudget(): Promise<void> {
+    for (let i = 0; i < MAX_CONSECUTIVE_FAILURES; i++) await refuseLatestDial();
   }
 
   beforeEach(() => {
@@ -73,9 +84,25 @@ describe('OwncastChatListener reachability guards', () => {
 
     await listener.start();
 
-    expect(listener.isParked).toBe(true);
+    expect(listener.isDormant).toBe(true);
     expect(registerCalls(fetchMock)).toBe(0);
     expect(fakeSockets).toHaveLength(0);
+  });
+
+  it('re-probes a chatDisabled instance, so switching chat back on is picked up', async () => {
+    mockEndpoints({ chatDisabled: true });
+    const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
+    await listener.start();
+
+    // Nothing happens on the fast cadence — that is the whole point.
+    await jest.advanceTimersByTimeAsync(5 * 60_000);
+    expect(fakeSockets).toHaveLength(0);
+
+    // The streamer turns chat on; the next slow probe finds it.
+    mockEndpoints({ chatDisabled: false });
+    await jest.advanceTimersByTimeAsync(DORMANT_INTERVAL_MS);
+
+    expect(fakeSockets).toHaveLength(1);
   });
 
   it('fails open when the config cannot be read — a blip is not a disable', async () => {
@@ -84,70 +111,112 @@ describe('OwncastChatListener reachability guards', () => {
 
     await listener.start();
 
-    expect(listener.isParked).toBe(false);
+    expect(listener.isDormant).toBe(false);
     expect(registerCalls(fetchMock)).toBe(1);
     expect(fakeSockets).toHaveLength(1);
   });
 
-  it('parks after MAX_CONSECUTIVE_FAILURES rather than retrying forever', async () => {
+  it('drops to the slow cadence after MAX_CONSECUTIVE_FAILURES', async () => {
     mockEndpoints();
     const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
     await listener.start();
 
-    // Every dial is refused. The last attempt inside the budget still redials.
-    for (let i = 1; i < OwncastChatListener.MAX_CONSECUTIVE_FAILURES; i++) {
-      await refuseLatestDial();
-    }
-    expect(fakeSockets).toHaveLength(OwncastChatListener.MAX_CONSECUTIVE_FAILURES);
-    expect(listener.isParked).toBe(false);
+    for (let i = 1; i < MAX_CONSECUTIVE_FAILURES; i++) await refuseLatestDial();
+    expect(fakeSockets).toHaveLength(MAX_CONSECUTIVE_FAILURES);
+    expect(listener.isDormant).toBe(false);
 
-    // One more tips it over the ceiling: parked, and no further socket opened.
     await refuseLatestDial();
-
-    expect(listener.isParked).toBe(true);
-    expect(fakeSockets).toHaveLength(OwncastChatListener.MAX_CONSECUTIVE_FAILURES);
+    expect(listener.isDormant).toBe(true);
+    // The fast cadence is over: no further dial on the old schedule.
+    expect(fakeSockets).toHaveLength(MAX_CONSECUTIVE_FAILURES);
   });
 
-  it('a working connection resets the budget, so flakiness never accumulates', async () => {
+  it('keeps re-probing once dormant, so a network fault is never terminal', async () => {
+    mockEndpoints();
+    const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
+    await listener.start();
+    await exhaustBudget();
+    const dialsWhenDormant = fakeSockets.length;
+
+    await jest.advanceTimersByTimeAsync(DORMANT_INTERVAL_MS);
+    expect(fakeSockets).toHaveLength(dialsWhenDormant + 1);
+
+    // The instance comes back and the connection holds: dormancy lifts.
+    latest().emit('open');
+    await jest.advanceTimersByTimeAsync(MIN_HEALTHY_CONNECTION_MS);
+    expect(listener.isDormant).toBe(false);
+
+    // ...and the fast cadence is available again.
+    latest().emit('close');
+    await jest.advanceTimersByTimeAsync(15_000);
+    expect(fakeSockets).toHaveLength(dialsWhenDormant + 2);
+  });
+
+  it('a connection that drops immediately does not refill the budget', async () => {
     mockEndpoints();
     const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
     await listener.start();
 
-    for (let i = 0; i < OwncastChatListener.MAX_CONSECUTIVE_FAILURES - 1; i++) {
-      await refuseLatestDial();
+    // Every attempt completes the upgrade, then dies well before proving itself.
+    for (let i = 0; i < MAX_CONSECUTIVE_FAILURES; i++) {
+      latest().emit('open');
+      await jest.advanceTimersByTimeAsync(MIN_HEALTHY_CONNECTION_MS / 2);
+      latest().emit('close');
+      await jest.advanceTimersByTimeAsync(5 * 60_000);
     }
-    fakeSockets[fakeSockets.length - 1].emit('open');
 
-    // A full fresh budget is available; spending all but one of it must not park.
-    for (let i = 1; i < OwncastChatListener.MAX_CONSECUTIVE_FAILURES; i++) {
-      await refuseLatestDial();
-    }
-    expect(listener.isParked).toBe(false);
+    expect(listener.isDormant).toBe(true);
   });
 
-  it('stop() ends the listener without marking the instance unreachable', async () => {
+  it('a connection that holds clears the budget, so flakiness never accumulates', async () => {
+    mockEndpoints();
+    const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
+    await listener.start();
+
+    for (let i = 0; i < MAX_CONSECUTIVE_FAILURES - 1; i++) await refuseLatestDial();
+    latest().emit('open');
+    await jest.advanceTimersByTimeAsync(MIN_HEALTHY_CONNECTION_MS);
+    latest().emit('close');
+    await jest.advanceTimersByTimeAsync(15_000);
+
+    // A full fresh budget: spending all but one of it must not go dormant.
+    for (let i = 1; i < MAX_CONSECUTIVE_FAILURES; i++) await refuseLatestDial();
+    expect(listener.isDormant).toBe(false);
+  });
+
+  it('stop() ends the listener for good', async () => {
     mockEndpoints();
     const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
     await listener.start();
 
     listener.stop();
     await refuseLatestDial();
+    await jest.advanceTimersByTimeAsync(DORMANT_INTERVAL_MS);
 
-    expect(listener.isParked).toBe(false);
     expect(fakeSockets).toHaveLength(1);
   });
 
-  it('start() clears a previous parking, so a returning stream is re-examined', async () => {
-    mockEndpoints({ chatDisabled: true });
+  it('stop() during the pre-flight fetches leaves no orphaned socket', async () => {
+    let releaseConfig: (() => void) | undefined;
+    global.fetch = jest.fn(async (url: string) => {
+      if (String(url).endsWith('/api/config')) {
+        await new Promise<void>((resolve) => {
+          releaseConfig = resolve;
+        });
+        return { ok: true, json: async () => ({ chatDisabled: false }) };
+      }
+      return { ok: true, json: async () => REGISTERED };
+    }) as unknown as typeof fetch;
+
     const listener = new OwncastChatListener('https://oc.example', 'Livelier', noopLog);
-    await listener.start();
-    expect(listener.isParked).toBe(true);
+    const starting = listener.start();
 
-    // The streamer turns chat back on and goes live again.
-    mockEndpoints({ chatDisabled: false });
-    await listener.start();
+    // The room closes while the config request is still in flight.
+    await Promise.resolve();
+    listener.stop();
+    releaseConfig?.();
+    await starting;
 
-    expect(listener.isParked).toBe(false);
-    expect(fakeSockets).toHaveLength(1);
+    expect(fakeSockets).toHaveLength(0);
   });
 });
