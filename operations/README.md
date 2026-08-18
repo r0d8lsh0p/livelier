@@ -35,9 +35,13 @@ one script each:
   (`OWNCAST_CHAT_TO_NOSTR`/`OWNCAST_CHAT_FROM_NOSTR`) are on.
 
 New rows are stamped from posture env vars (`OWNCAST_DEFAULT_DISCOVERY_ENABLED`
-default true, `OWNCAST_DEFAULT_CHAT_ENABLED` default false). Existing rows are
-never auto-swept to match posture — explicit settings stick. Track who asked
-for an opt-out and why in your own ops notes (email/GH), not the DB.
+default true, `OWNCAST_DEFAULT_CHAT_ENABLED` default false). The bridge never
+auto-sweeps existing rows to match posture — explicit settings stick. Bringing
+them along is an operator act, not a side effect of a deploy: `set-chat.mjs
+--all` is that act, and it says how many rows it would touch before it touches
+any. Track who asked for an opt-out and why in your own ops notes (email/GH),
+not the DB — and note that `--all on` overwrites a per-row chat opt-out just
+like any other row, so re-apply those afterwards.
 
 ```bash
 # A host asks to be removed: both flags off (history stays on the relays;
@@ -51,6 +55,13 @@ node operations/set-discovery.mjs https://live.example on --confirm
 # Staged chat rollout / per-room kill switch:
 node operations/set-chat.mjs https://live.example on --confirm
 node operations/set-chat.mjs https://live.example off --confirm
+
+# Fleet-wide: open (or shut) chat on every existing row. Pairs with flipping
+# OWNCAST_DEFAULT_CHAT_ENABLED, which only reaches rows discovered after it.
+# Dry-run prints the per-source census; --source scopes it to one adapter.
+node operations/set-chat.mjs --all on                    # census, changes nothing
+node operations/set-chat.mjs --all on --confirm          # execute
+node operations/set-chat.mjs --all off --confirm         # the fleet-wide undo
 ```
 
 ## republish-profiles.mjs
