@@ -170,3 +170,19 @@ Changes that violate any of these have caused (or would cause) real breakage.
     new and re-publish it. Posture env vars stamp NEW rows only, inside the
     INSERT; nothing ever sweeps existing rows to match config, so explicit
     per-row settings (opt-outs, test enables) always stick.
+12. **A standing subscription is rebuilt by its consumer.**
+    `clientService.subscribe()` re-opens a REQ only when the relay closed it
+    with a rate-limit reason; every other reason — including the connection
+    timeout that killed inbound chat in production — is terminal. Consumers
+    therefore need two things: restart when `onclose` reports enough of the
+    relays gone, AND a periodic health check. The second is not redundant,
+    because `onclose` fires only once *every* relay has closed and a relay
+    that never connected is never counted, so a dead subscription can report
+    nothing at all. Restarting is not free either: closing a subscription
+    cancels the retry the client armed for a rate-limited relay, so
+    close-driven restarts must be rate-limited or they become a dial loop.
+    Do not push more retry logic down into `client.service.ts`: it is a
+    vendored copy, and divergence there is invisible to every consumer that
+    did not ask for it. Liveness must also be observable — inbound chat for
+    the whole fleet rides one subscription, and a lost one emits no error and
+    no events, so it reads exactly like quiet rooms.

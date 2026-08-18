@@ -23,11 +23,19 @@ export interface NostrClient {
   ): Promise<Event>;
   /** Publish to the given relays only. Resolves per-relay acceptance. */
   publishEvent(event: Event, relayUrls: string[]): Promise<Record<string, boolean>>;
-  /** Long-lived subscription across the given relays. */
+  /**
+   * Long-lived subscription across the given relays. `onclose` fires when
+   * every relay has ended it. The client re-opens a REQ only when the close
+   * reason was a rate limit; every other reason is terminal, so a consumer
+   * that needs the subscription to outlive a relay must rebuild it.
+   */
   subscribe(
     relayUrls: string[],
     filter: Filter | Filter[],
-    handlers: { onevent?: (evt: Event) => void }
+    handlers: {
+      onevent?: (evt: Event) => void;
+      onclose?: (reasons: string[]) => void;
+    }
   ): { close: () => void };
   /** One-shot query: collect events until EOSE (bounded by eoseDeadlineMs). */
   query(

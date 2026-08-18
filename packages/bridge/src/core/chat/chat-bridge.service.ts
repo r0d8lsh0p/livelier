@@ -11,6 +11,20 @@ import { DemandSource } from '../nostr/demand.client';
 import { ChatAdapter, ChatListenerHandle, SourceChatJoin, SourceChatMessage } from './types';
 
 const ROOM_REFRESH_MS = 30_000;
+/** Heartbeat cadence — independent of the room refresh, see logHeartbeat. */
+const HEARTBEAT_MS = 30_000;
+/** Subscription health-check cadence. */
+const HEALTH_CHECK_MS = 60_000;
+/** Silence tolerated before the subscription is rebuilt regardless. */
+const MAX_SILENCE_MS = 60 * 60_000;
+/** Consecutive health checks with publishes but no echo before rebuilding. */
+const ECHO_MISS_RESTART = 2;
+/** Minimum gap between close-driven restarts — see the close handler. */
+const MIN_RESTART_INTERVAL_MS = 30_000;
+/** Share of a subscription's relays that must drop before it is rebuilt. */
+const RELAY_DISCONNECT_THRESHOLD = 0.75;
+/** The 1311 firehose is pinned to the one chat relay. */
+const LOCAL_FIREHOSE_RELAYS = 1;
 
 /** The chat service's slice of configuration — per source. */
 export interface ChatServiceConfig {
@@ -67,7 +81,31 @@ export class ChatBridgeService {
   private networkSub: { close: () => void } | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private demandTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private healthTimer: ReturnType<typeof setInterval> | null = null;
   private bridgePubkey: string;
+  /**
+   * Traffic since the last heartbeat. Counted per firehose, not pooled: the
+   * local and network subscriptions fail independently, and a healthy
+   * network firehose would otherwise mask a dead local one — which carries
+   * almost all real traffic.
+   */
+  private localSeen = 0;
+  private networkSeen = 0;
+  private inboundDelivered = 0;
+  private outboundPublished = 0;
+  /** Set by stop(), so the close handlers do not resubscribe on teardown. */
+  private stopped = false;
+  /** Health-monitor state — see checkSubscriptionHealth. */
+  private lastEventTime = Date.now();
+  /** Relays reported closed since the last restart — see the close handler. */
+  private disconnectedRelayCount = 0;
+  /** Per-health-check echo accounting — see checkSubscriptionHealth. */
+  private publishedSinceCheck = 0;
+  private seenSinceCheck = 0;
+  private echoMissStreak = 0;
+  /** When the firehose was last rebuilt, to rate-limit close-driven restarts. */
+  private lastRestartAt = 0;
 
   constructor(
     private readonly config: ChatServiceConfig,
@@ -82,6 +120,13 @@ export class ChatBridgeService {
   }
 
   async start(): Promise<void> {
+    this.stopped = false;
+    this.lastEventTime = Date.now();
+    this.disconnectedRelayCount = 0;
+    this.publishedSinceCheck = 0;
+    this.seenSinceCheck = 0;
+    this.echoMissStreak = 0;
+    this.lastRestartAt = 0;
     this.log.info(
       {
         source: this.adapter.sourceKey,
@@ -96,6 +141,8 @@ export class ChatBridgeService {
         this.log.error({ err }, 'chat room refresh failed')
       );
     }, ROOM_REFRESH_MS);
+    this.heartbeatTimer = setInterval(() => this.logHeartbeat(), HEARTBEAT_MS);
+    this.healthTimer = setInterval(() => this.checkSubscriptionHealth(), HEALTH_CHECK_MS);
     if (this.demand && this.config.chatToNostr) {
       await this.pollDemand().catch((err) =>
         this.log.error({ err }, 'initial demand poll failed')
@@ -115,12 +162,25 @@ export class ChatBridgeService {
       clearInterval(this.demandTimer);
       this.demandTimer = null;
     }
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer);
+      this.healthTimer = null;
+    }
     for (const room of this.rooms.values()) room.listener?.stop();
     this.rooms.clear();
-    this.nostrSub?.close();
+    // Detach before closing: the close handlers resubscribe, and must not
+    // bring the firehose back up behind a stop().
+    this.stopped = true;
+    const nostrSub = this.nostrSub;
+    const networkSub = this.networkSub;
     this.nostrSub = null;
-    this.networkSub?.close();
     this.networkSub = null;
+    nostrSub?.close();
+    networkSub?.close();
     this.adapter.closeAll();
   }
 
@@ -161,6 +221,36 @@ export class ChatBridgeService {
 
     this.ensureNostrSub();
     this.ensureNetworkSub();
+  }
+
+  /**
+   * Say out loud what each firehose is carrying. A lost subscription raises
+   * no error and delivers no events, so it reads exactly like rooms that
+   * happen to be quiet — this is the only place the difference is visible.
+   *
+   * Runs on its own timer rather than at the end of refreshRooms(): an
+   * observability signal must not go quiet because a database read or a
+   * source connection upstream of it is hanging.
+   */
+  private logHeartbeat(): void {
+    if (this.config.chatFromNostr) {
+      const listeners = [...this.rooms.values()].filter((r) => r.listener !== null).length;
+      this.log.info(
+        {
+          rooms: this.rooms.size,
+          listeners,
+          localSeen: this.localSeen,
+          networkSeen: this.networkSeen,
+          outboundPublished: this.outboundPublished,
+          delivered: this.inboundDelivered,
+        },
+        'chat bridge heartbeat'
+      );
+    }
+    this.localSeen = 0;
+    this.networkSeen = 0;
+    this.inboundDelivered = 0;
+    this.outboundPublished = 0;
   }
 
   /**
@@ -244,6 +334,10 @@ export class ChatBridgeService {
       ...(msg.emojis ?? []).map((e) => ['emoji', e.shortcode, e.imageUrl]),
     ];
     await this.gateway.publish(signer, 1311, msg.text, tags);
+    // The clock for both the heartbeat and the watchdog: this 1311 goes to
+    // the chat relay, so a live local firehose must read it straight back.
+    this.outboundPublished += 1;
+    this.publishedSinceCheck += 1;
     this.log.info(
       { instance: room.row.url, from: msg.displayName },
       'source→nostr chat bridged'
@@ -277,7 +371,16 @@ export class ChatBridgeService {
   }
 
   /** Nostr → source: deliver a kind-1311 into the source chat. */
-  async handleNostrEvent(event: Event): Promise<void> {
+  async handleNostrEvent(event: Event, via: 'local' | 'network' = 'local'): Promise<void> {
+    // Counted before every filter, including events this bridge published
+    // itself: reception is what the health monitor watches, not delivery.
+    if (via === 'network') {
+      this.networkSeen += 1;
+    } else {
+      this.localSeen += 1;
+      this.seenSinceCheck += 1;
+      this.lastEventTime = Date.now();
+    }
     // Only 1311 is delivered today; the network sub also carries 1312/1313
     // for future use, and those must not land in the source chat as text.
     if (event.kind !== 1311) return;
@@ -321,6 +424,7 @@ export class ChatBridgeService {
     // now would reopen a source connection the bridge just closed.
     if (this.rooms.get(room.row.url) !== room) return;
     await this.adapter.sendMessage(room.row.url, event.pubkey, displayName, text, tokens);
+    this.inboundDelivered += 1;
     this.log.info({ instance: room.row.url, from: displayName }, 'nostr→source chat bridged');
   }
 
@@ -366,18 +470,64 @@ export class ChatBridgeService {
   }
 
   /**
-   * Open the 1311 firehose once and keep it open for the life of the service.
-   * The subscription is unscoped (no `#a`) so it never counts toward the
-   * relay's /demand viewer aggregation, and never churns as rooms come and go
-   * — events for rooms we don't hold are dropped in handleNostrEvent.
+   * Hold the 1311 firehose open for the life of the service, rebuilding it
+   * whenever the relay ends it or the watchdog finds it silent. The
+   * subscription is unscoped (no `#a`) so it never counts toward the relay's
+   * /demand viewer aggregation, and never churns as rooms come and go —
+   * events for rooms we don't hold are dropped in handleNostrEvent.
    */
   private ensureNostrSub(): void {
-    if (!this.config.chatFromNostr || this.nostrSub) return;
-    this.nostrSub = this.gateway.subscribe1311((event) => {
-      void this.handleNostrEvent(event).catch((err) =>
-        this.log.error({ err }, 'nostr→source relay failed')
-      );
-    });
+    // refreshRooms() awaits a database read and source connections, so a
+    // stop() can land mid-refresh; without this the tail of that refresh
+    // opens a subscription no timer will ever close.
+    if (this.stopped || !this.config.chatFromNostr || this.nostrSub) return;
+    this.nostrSub = this.gateway.subscribe1311(
+      (event) => {
+        void this.handleNostrEvent(event).catch((err) =>
+          this.log.error({ err }, 'nostr→source relay failed')
+        );
+      },
+      // Inbound chat for every room rides this one subscription, and the
+      // client re-opens a REQ only after a rate-limit close — every other
+      // reason, including the connection timeout that took this down in
+      // production, is terminal unless the consumer rebuilds it.
+      (reasons) => {
+        // stop() and restartNostrSub() detach the handle before closing, so
+        // reaching here with one still set means the relay ended it, not us.
+        if (this.stopped || !this.nostrSub) return;
+        // The client reports every relay in one call, so on a single-relay
+        // subscription this proportion is always 100%. Kept proportional
+        // because the same handler shape has to hold when a subscription
+        // spans several relays, where losing some is not losing all.
+        this.disconnectedRelayCount += reasons.length;
+        const disconnectPct = (this.disconnectedRelayCount / LOCAL_FIREHOSE_RELAYS) * 100;
+        this.log.warn(
+          { disconnected: reasons.length, disconnectPct: disconnectPct.toFixed(1) },
+          'relays disconnected'
+        );
+        if (disconnectPct > RELAY_DISCONNECT_THRESHOLD * 100) {
+          // Floored, because restarting is not free: closing a subscription
+          // cancels the retry the client armed for a rate-limited relay, and
+          // re-subscribing reconnects the socket that cooldown just severed.
+          // Unfloored, a relay CLOSEing every REQ turns this into a dial loop
+          // bounded only by connect time. The health check picks up anything
+          // deferred here within its next tick.
+          const sinceRestart = Date.now() - this.lastRestartAt;
+          if (sinceRestart < MIN_RESTART_INTERVAL_MS) {
+            this.log.warn(
+              { sinceRestartMs: sinceRestart },
+              'closes arriving faster than the restart floor, deferring to the health check'
+            );
+            return;
+          }
+          this.log.warn(
+            { threshold: RELAY_DISCONNECT_THRESHOLD * 100 },
+            'disconnect threshold exceeded, triggering reconnection'
+          );
+          this.restartNostrSub();
+        }
+      }
+    );
     this.log.info('nostr 1311 firehose subscription opened');
   }
 
@@ -392,20 +542,92 @@ export class ChatBridgeService {
    * relay set is empty (flag off).
    */
   private ensureNetworkSub(): void {
-    if (!this.config.chatFromNostr || this.networkSub) return;
+    if (this.stopped || !this.config.chatFromNostr || this.networkSub) return;
     if (this.config.networkChatReadRelays.length === 0) return;
 
     this.networkSub = this.gateway.subscribeNetworkChat(
       this.config.networkChatReadRelays,
       (event) => {
-        void this.handleNostrEvent(event).catch((err) =>
+        void this.handleNostrEvent(event, 'network').catch((err) =>
           this.log.error({ err }, 'network→source relay failed')
         );
+      },
+      (reasons) => {
+        if (this.stopped || !this.networkSub) return;
+        this.log.warn({ reasons }, 'network chat firehose closed — resubscribing');
+        // Closed, not just dropped: an unclosed handle keeps its own retry
+        // timers armed and can re-open a REQ into a closure nothing holds.
+        const sub = this.networkSub;
+        this.networkSub = null;
+        sub.close();
+        this.ensureNetworkSub();
       }
     );
     this.log.info(
       { relays: this.config.networkChatReadRelays.length },
       'network chat firehose opened'
     );
+  }
+
+  /**
+   * Detect silence periods: if no event has arrived for more than
+   * MAX_SILENCE_MS, restart the subscription. `onclose` does not cover every
+   * way a subscription dies — a relay that failed to connect never counts
+   * toward the client's close tally, so a dead subscription can report
+   * nothing at all.
+   */
+  private checkSubscriptionHealth(): void {
+    if (!this.config.chatFromNostr || !this.nostrSub) return;
+
+    // Every source→Nostr 1311 is published to the chat relay this same
+    // subscription reads, so the bridge's own traffic answers the question
+    // silence cannot: published above zero with nothing received means the
+    // subscription is gone, not that the rooms are quiet. Two windows, not
+    // one — a message published near a window's edge echoes into the next.
+    //
+    // Two conditions this rests on. Bridged 1311s carry NIP-70 `-` and are
+    // published over an authed socket while this REQ is unauthenticated, so
+    // a relay that stopped serving protected events to unauthed readers
+    // would make every window look like a miss. And with chatToNostr off
+    // there are no publishes at all, leaving only the silence backstop.
+    const echoMissing = this.publishedSinceCheck > 0 && this.seenSinceCheck === 0;
+    this.publishedSinceCheck = 0;
+    this.seenSinceCheck = 0;
+    this.echoMissStreak = echoMissing ? this.echoMissStreak + 1 : 0;
+    if (this.echoMissStreak >= ECHO_MISS_RESTART) {
+      this.log.warn(
+        { echoMissStreak: this.echoMissStreak },
+        'published events are not coming back, restarting subscription'
+      );
+      this.echoMissStreak = 0;
+      this.restartNostrSub();
+      return;
+    }
+
+    // Backstop for when the bridge has published nothing either.
+    const silentMs = Date.now() - this.lastEventTime;
+    if (silentMs < MAX_SILENCE_MS) return;
+    this.log.warn(
+      { silentMinutes: Math.round(silentMs / 60_000) },
+      'subscription silent, restarting'
+    );
+    this.restartNostrSub();
+  }
+
+  /** Cleanly stop the current subscription and recreate it. */
+  private restartNostrSub(): void {
+    this.disconnectedRelayCount = 0;
+    // The new subscription must not be judged on the old one's window.
+    this.publishedSinceCheck = 0;
+    this.seenSinceCheck = 0;
+    this.echoMissStreak = 0;
+    this.lastRestartAt = Date.now();
+    const sub = this.nostrSub;
+    // Nulled before close(): the client invokes onclose synchronously from
+    // close(), straight back into the handler below.
+    this.nostrSub = null;
+    sub?.close();
+    this.lastEventTime = Date.now();
+    this.ensureNostrSub();
   }
 }
