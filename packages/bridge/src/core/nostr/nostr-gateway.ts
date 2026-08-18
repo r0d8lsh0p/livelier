@@ -40,15 +40,23 @@ export interface NostrGateway {
    */
   subscribeNetworkChat(
     relayUrls: string[],
-    onevent: (event: Event) => void
+    onevent: (event: Event) => void,
+    onclose?: (reasons: string[]) => void
   ): { close: () => void };
   /**
    * Full kind-1311 firehose from the local relay. Deliberately carries no `#a`
    * filter: the relay's /demand endpoint counts open `#a`-scoped subscriptions
    * as viewer demand, and the bridge's own reader must never register as a
    * viewer. Room routing happens client-side off each event's `a` tag.
+   *
+   * `onclose` is not optional in practice: the client re-opens a REQ only
+   * after a rate-limit close, so a consumer that ignores it loses the
+   * firehose for the life of the process on every other close reason.
    */
-  subscribe1311(onevent: (event: Event) => void): { close: () => void };
+  subscribe1311(
+    onevent: (event: Event) => void,
+    onclose?: (reasons: string[]) => void
+  ): { close: () => void };
   fetchProfileName(pubkey: string): Promise<string | null>;
 }
 
@@ -82,21 +90,25 @@ export class ClientServiceGateway implements NostrGateway {
 
   subscribeNetworkChat(
     relayUrls: string[],
-    onevent: (event: Event) => void
+    onevent: (event: Event) => void,
+    onclose?: (reasons: string[]) => void
   ): { close: () => void } {
     const filter: Filter = {
       kinds: [...CHAT_EVENT_KINDS],
       since: Math.floor(Date.now() / 1000),
     };
-    return nostrClient.subscribe(relayUrls, filter, { onevent });
+    return nostrClient.subscribe(relayUrls, filter, { onevent, onclose });
   }
 
-  subscribe1311(onevent: (event: Event) => void): { close: () => void } {
+  subscribe1311(
+    onevent: (event: Event) => void,
+    onclose?: (reasons: string[]) => void
+  ): { close: () => void } {
     const filter: Filter = {
       kinds: [1311],
       since: Math.floor(Date.now() / 1000),
     };
-    return nostrClient.subscribe([this.relayUrl], filter, { onevent });
+    return nostrClient.subscribe([this.relayUrl], filter, { onevent, onclose });
   }
 
   async fetchProfileName(pubkey: string): Promise<string | null> {
