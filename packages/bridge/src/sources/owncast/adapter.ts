@@ -73,7 +73,7 @@ export function toDiscoveredLive(instance: DirectoryInstance): DiscoveredLive {
  */
 export class OwncastAdapter implements DiscoveryAdapter, ChatAdapter {
   readonly sourceKey = 'owncast';
-  readonly sourceName = 'Owncast';
+  readonly sourceName = 'Owncast Directory';
   readonly dTagPrefix = 'oc';
   readonly proxyProtocol = 'web';
 

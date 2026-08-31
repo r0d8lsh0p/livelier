@@ -60,14 +60,16 @@ export interface LivePublishInput {
 }
 
 /**
- * Build the kind-0 content for a bridged instance. The attribution line says
- * only "Bridged from <source>" — the instance URL already lives in the
- * `website` field, and "bridged" (never "mirrored") is the product's word.
+ * Build the kind-0 content for a bridged instance. The attribution line reads
+ * "Bridged from <source> by https://livelier.live" (source e.g. "Owncast
+ * Directory") — the instance URL already lives in the `website` field, and
+ * "bridged" (never "mirrored") is the product's word.
  */
 export function buildBridgedProfileContent(input: BridgedProfileInput): string {
+  const attribution = `Bridged from ${input.sourceName} by https://livelier.live`;
   const about = input.description
-    ? `${input.description}\n\nBridged from ${input.sourceName}.`
-    : `Bridged from ${input.sourceName}.`;
+    ? `${input.description}\n\n${attribution}`
+    : attribution;
   return JSON.stringify({
     name: input.name,
     display_name: input.name,

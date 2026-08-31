@@ -99,7 +99,7 @@ describe('OwncastAdapter', () => {
 
   it('declares its source identity', () => {
     expect(adapter.sourceKey).toBe('owncast');
-    expect(adapter.sourceName).toBe('Owncast');
+    expect(adapter.sourceName).toBe('Owncast Directory');
     expect(adapter.dTagPrefix).toBe('oc');
     expect(adapter.proxyProtocol).toBe('web');
   });
