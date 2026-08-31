@@ -214,9 +214,9 @@ describe('ChatBridgeService', () => {
       'ws://relay:8080',
       'root',
     ]);
-    // Chatter profile copy carries the source's name.
+    // Chatter profile copy carries the source's name and bridge attribution.
     const profileCall = deps.gateway.broadcast.mock.calls[0];
-    expect(profileCall[2]).toContain('(Owncast)');
+    expect(profileCall[2]).toContain('bridged from Owncast by https://livelier.live');
     // NIP-40: expires chatExpirationSeconds from now (within test tolerance).
     const expTag = (chatCall[3] as string[][]).find((t) => t[0] === 'expiration');
     expect(expTag).toBeDefined();

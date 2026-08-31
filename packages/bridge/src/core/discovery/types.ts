@@ -48,7 +48,10 @@ export interface DiscoveryAdapter {
    * and log labels. Changing it re-keys every bridged identity of the source.
    */
   readonly sourceKey: string;
-  /** Human name of the network, used in profile copy ("… (Owncast)."). */
+  /**
+   * Human name of the source, used in profile copy ("Bridged from Owncast
+   * Directory by https://livelier.live").
+   */
   readonly sourceName: string;
   /**
    * 2–3 char d-tag prefix. The full d-tag must stay under 30 chars —
